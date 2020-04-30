@@ -4,8 +4,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "data_types.h"
-#include "parser.h"
+#include "data/vl_object.h"
+#include "parser/vl_parser.h"
 
 #include <time.h>
 
