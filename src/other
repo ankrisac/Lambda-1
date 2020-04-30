@@ -1,0 +1,362 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <limits.h>
+
+char* copyString(char const* str){
+    size_t len = strlen(str);
+    char* out = (char*)malloc((len + 1) * sizeof(str));
+    strcpy(out, str);
+
+    return out;
+}
+
+typedef struct AVLNode AVLNode;
+struct AVLNode{
+    char* key;
+    int value;    
+
+    int height;
+
+    AVLNode* parent;
+    AVLNode* left;
+    AVLNode* right;
+};
+
+void AVLNode_init(AVLNode* self, char const* key, int value){
+    self->key = copyString(key);
+    self->value = value;
+    
+    self->height = 0;
+
+    self->parent = NULL;
+    self->left = NULL;
+    self->right = NULL;
+}
+AVLNode* AVLNode_new(char const* key, int value){
+    AVLNode* out = (AVLNode*)malloc(1 * sizeof(AVLNode));
+    AVLNode_init(out, key, value);
+    return out;
+}
+
+void AVLNode_destroy(AVLNode* self){
+    if(self != NULL){
+        AVLNode_destroy(self->left);
+        AVLNode_destroy(self->right);
+
+        free(self->key);
+        free(self);
+    }
+}
+
+bool AVLNode_isLeft(AVLNode const* self){
+    return (self->parent->left == self);
+}
+bool AVLNode_isRight(AVLNode const* self){
+    return (self->parent->right == self);
+}
+
+void printIndent(size_t indent){
+    for(size_t i = 0; i < indent; i++){
+        printf("    ");
+    }
+}
+void AVLNode_printData(AVLNode* self){
+    if(self != NULL){
+        printf("[%s:%i]", self->key, self->value);
+    }
+    else{
+        printf("[#]");
+    }
+}
+void AVLNode_print(AVLNode* self, size_t indent){
+    if(self != NULL && (self->left != NULL || self->right != NULL)){
+        AVLNode_print(self->left, indent + 1);
+        
+        printIndent(indent);
+        AVLNode_printData(self);
+        printf("\n");
+        
+        AVLNode_print(self->right, indent + 1);   
+    }
+    else{
+        printIndent(indent);
+        AVLNode_printData(self);
+        printf("\n");
+    }
+}
+
+int max(int x, int y){
+    return (x > y) ? x : y;
+}
+int AVLNode_getHeight(AVLNode* self){
+    return (self == NULL) ? 0 : (1 + max(AVLNode_getHeight(self->left), AVLNode_getHeight(self->right)));
+}
+int AVLNode_getSize(AVLNode* self){
+    return (self == NULL) ? 0 : (1 + AVLNode_getSize(self->left) + AVLNode_getSize(self->right));
+}
+
+
+AVLNode* AVLNode_find(AVLNode* tree, char* key){
+    if(tree != NULL){
+        int cmp = strcmp(tree->key, key);
+
+        if(cmp == 0){
+            return tree;
+        }
+        else if(cmp < 0){
+            return AVLNode_find(tree->right, key);
+        }
+        else{
+            return AVLNode_find(tree->left, key);
+        }
+    }
+    return tree;
+}
+
+AVLNode* AVLNode_rotateL(AVLNode* self){
+    AVLNode* out = self->right;
+    
+    out->parent = self->parent;
+    
+    if(self->parent != NULL){
+        if(AVLNode_isRight(self)){
+            self->parent->right = out;
+        }
+        else{
+            self->parent->left = out;
+        }
+    }
+
+    self->parent = out;
+    self->right = out->left;
+    if(self->right != NULL){
+        self->right->parent = self;
+    }
+
+    out->left = self;
+
+    return out;
+}
+AVLNode* AVLNode_rotateR(AVLNode* self){
+    AVLNode* out = self->left;
+
+    out->parent = self->parent;
+
+    if(self->parent != NULL){
+        if(AVLNode_isRight(self)){
+            self->parent->right = out;
+        }
+        else{
+            self->parent->left = out;
+        }
+    }
+    
+    self->parent = out;
+    self->left = out->right;
+    if(self->left != NULL){
+        self->left->parent = self;
+    }
+
+    out->right = self;
+
+    return out;
+}
+AVLNode* AVLNode_rotateRL(AVLNode* self){
+    self->right = AVLNode_rotateR(self->right);
+    return AVLNode_rotateL(self);
+}
+AVLNode* AVLNode_rotateLR(AVLNode* self){
+    self->left = AVLNode_rotateL(self->left);
+    return AVLNode_rotateR(self);
+}
+
+AVLNode* AVLNode_getRoot(AVLNode* self){
+    AVLNode* root = self;
+    while(root->parent != NULL){
+        root = root->parent;
+    }
+    return root;
+}
+AVLNode* AVLNode_rebalance(AVLNode* self){
+    AVLNode* root = NULL;
+    for(AVLNode* Node = self; Node != NULL; root = Node, Node = Node->parent){
+        int diff = AVLNode_getHeight(Node->right) - AVLNode_getHeight(Node->left);
+        
+        if(diff == 2){
+            int diff_right = AVLNode_getHeight(Node->right->right) - AVLNode_getHeight(Node->right->left);
+
+            if(diff_right == +1){
+                Node = AVLNode_rotateL(Node);
+            }   
+            else{
+                Node = AVLNode_rotateRL(Node);
+            }
+        }
+        else if(diff == -2){
+            int diff_left = AVLNode_getHeight(Node->left->right) - AVLNode_getHeight(Node->left->left);
+
+            if(diff_left == +1){
+                Node = AVLNode_rotateLR(Node);
+            }
+            else{
+                Node = AVLNode_rotateR(Node);    
+            }
+        }
+    }
+    return root;
+}
+AVLNode* __AVLNode_insert(AVLNode* self, char const* key, int value){
+    int cmp = strcmp(self->key, key);
+
+    if(cmp == 0){
+        self->value = value;
+        return NULL;
+    }
+    else{
+        if(cmp < 0){
+            if(self->right == NULL){
+                self->right = AVLNode_new(key, value);
+                self->right->parent = self;
+                return AVLNode_rebalance(self);
+            }
+            return __AVLNode_insert(self->right, key, value);
+        }
+        else{
+            if(self->left == NULL){
+                self->left = AVLNode_new(key, value);
+                self->left->parent = self;
+                return AVLNode_rebalance(self);
+            }
+            return __AVLNode_insert(self->left, key, value);    
+        }
+    }
+}
+void AVLNode_insert(AVLNode** self, char const* key, int value){
+    *self = __AVLNode_insert(*self, key, value);
+}
+
+//AVLNode* __AVLNode_delete(AVLNode* self, char const* key){
+//}
+
+char* REPL_readLn(char** ibuff, size_t* ibuff_len){
+    size_t len = getline(ibuff, ibuff_len, stdin);
+    (*ibuff)[len - 1] = '\0';
+    return copyString(*ibuff);
+}
+
+#include <time.h>
+
+void REPL_find(AVLNode* tree, char** ibuff, size_t* ibuff_len){
+    printf("key = ");
+    char* key = REPL_readLn(ibuff, ibuff_len);
+
+    AVLNode* data = AVLNode_find(tree, key);
+
+    if(data != NULL){
+        AVLNode_printData(data);
+        printf("\n");
+    }
+    else{
+        printf("Key not found!\n");
+    }
+}
+void REPL_insert(AVLNode** tree, char** ibuff, size_t* ibuff_len){
+    printf("key = ");
+    char* key = REPL_readLn(ibuff, ibuff_len);
+
+    printf("value = ");
+    char* str_value = REPL_readLn(ibuff, ibuff_len);
+
+    int value = 0, digit = 0;
+
+    for(char* i = str_value; *i != '\0'; i++){
+        digit = (int)(*i - '0');
+        if(0 <= digit && digit <= 9){
+            value = 10 * value + digit;
+        }
+        else{
+            printf("Expected number!\n");
+            value = -1;
+            break;
+        }
+    }
+
+    if(value >= 0){
+        AVLNode_insert(tree, key, value);
+    }
+
+    free(str_value);
+    free(key);
+}
+
+void REPL(){
+    char* input = NULL;
+    size_t input_len = 0;
+
+    printf("Viper [alpha.alpha]\n");
+
+    AVLNode* tree = AVLNode_new("__root", 0);
+
+    char* out = (char*)malloc(10 * sizeof(char));
+    float begin, end;
+    size_t N = 2000;
+    
+    begin = (float)clock()/CLOCKS_PER_SEC;
+    for(size_t i = 0; i < N; i++){
+        sprintf(out, "id%zu", i);
+        AVLNode_insert(&tree, out, i);
+    }
+    end = (float)clock()/CLOCKS_PER_SEC;
+
+    printf("\nTime taken %f\n", end - begin);
+
+    begin = (float)clock()/CLOCKS_PER_SEC;
+    for(size_t i = 0; i < N; i++){
+        sprintf(out, "id%zu", i);
+        AVLNode_printData(AVLNode_find(tree, out));
+    }
+    end = (float)clock()/CLOCKS_PER_SEC;
+    printf("\nTime taken %f\n", end - begin);
+
+
+    while(true){
+        printf(">>> ");
+        char* cmd = REPL_readLn(&input, &input_len);
+
+        if(strcmp(input, "exit") == 0
+        || strcmp(input, "quit") == 0){
+            free(cmd);
+            break;
+        }
+        else if(strcmp(input, "print") == 0){
+            AVLNode_print(tree, 0);
+        }
+        else if(strcmp(input, "insert") == 0){
+            REPL_insert(&tree, &input, &input_len);
+        }
+        else if(strcmp(input, "find") == 0){
+            REPL_find(tree, &input, &input_len);
+        }
+        else if(strcmp(input, "height") == 0){
+            printf("Height: %i\n", AVLNode_getHeight(tree));
+        }
+        else if(strcmp(input, "size") == 0){
+            printf("Elements: %i\n", AVLNode_getSize(tree));
+        }
+
+        free(cmd);
+    }
+
+    AVLNode_destroy(tree);
+
+    free(input);
+}
+
+int main(){
+    REPL();
+
+    return 0;
+}
