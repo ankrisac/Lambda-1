@@ -150,6 +150,13 @@ char* VL_Str_to_cstr(VL_Str* self){
     return out;
 }
 
+void VL_Str_reverse(VL_Str* self){
+    for(size_t i = 0, j = self->len - 1; i < j; i++, j--){
+        char temp = self->data[i];
+        self->data[i] = self->data[j];
+        self->data[j] = temp;
+    }
+}
 int VL_Str_cmp_cstr(const VL_Str* self, const char* str){
     const char* j = str;
     for(size_t i = 0; i < self->len; i++, j++){
@@ -169,10 +176,10 @@ int VL_Str_cmp_cstr(const VL_Str* self, const char* str){
     }
     return 1;
 }
-void VL_Str_reverse(VL_Str* self){
-    for(size_t i = 0, j = self->len - 1; i < j; i++, j--){
-        char temp = self->data[i];
-        self->data[i] = self->data[j];
-        self->data[j] = temp;
+
+bool VL_Str_is_char(const VL_Str* self, char val){
+    if(self->len == 1){
+        return (self->data[0] == val);
     }
+    return false;
 }

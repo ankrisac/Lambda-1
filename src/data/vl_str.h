@@ -29,3 +29,4 @@ char* VL_Str_to_cstr(VL_Str* self);
 
 void VL_Str_reverse(VL_Str* self);
 int VL_Str_cmp_cstr(const VL_Str* self, const char* str);
+bool VL_Str_is_char(const VL_Str* self, char val);

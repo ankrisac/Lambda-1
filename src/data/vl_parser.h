@@ -1,5 +1,4 @@
-#ifndef __VL_PARSER_H__
-#define __VL_PARSER_H__
+#pragma once
 #include "vl_parser_core.h"
 
 char VLP_match_escape_seq(char in);
@@ -15,8 +14,6 @@ bool VLP_Label(VL_Parser* self, VLP_State* state);
 bool VLP_Operator(VL_Parser* self, VLP_State* state);
 
 bool VLP_FAtom(VL_Parser* self, VLP_State* state);
-bool VLP_IAtom(VL_Parser* self, VLP_State* state);
-
 bool VLP_FExpr(VL_Parser* self, VLP_State* state);
 bool VLP_LExpr(VL_Parser* self, VLP_State* state);
 bool VLP_BExpr(VL_Parser* self, VLP_State* state);
@@ -24,4 +21,3 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state);
 void VLP_NExpr(VL_Parser* self, VLP_State* state);
 
 VLP_State VLP_Lisp(VL_Parser* self, VLP_State in);
-#endif

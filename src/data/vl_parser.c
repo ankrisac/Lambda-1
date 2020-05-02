@@ -114,6 +114,7 @@ bool VLP_String(VL_Parser* self, VLP_State* state){
             "Expected closing " VLT_ERR("quote [\"]") 
             " of " VLT_ERR("string"));
         VL_Str_delete(string);
+        return false;
     }
     
     state->val = VL_Object_wrap_str(string);
@@ -136,7 +137,30 @@ bool VLP_Label(VL_Parser* self, VLP_State* state){
         VL_Str_append_char(string, chr);
     }
 
-    state->val = VL_Object_from_symbol(VL_SYM_OR);
+    state->val = NULL;
+    #define S(STR, SYM)                                     \
+    if(VL_Str_cmp_cstr(string, STR) == 0){                  \
+        state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); \
+    }
+    switch(string->len){
+        case 3:{
+            S("int", LTE)
+            else S("not", NOT)
+            break;
+        }
+        case 5:{
+            S("float", FLOAT)
+            else S("infix", INFIX)
+            else S("print", PRINT)
+            break;
+        }
+        default:
+            break;
+    }
+    #undef S
+    if(state->val == NULL){
+        state->val = VL_Object_new(VL_TYPE_NONE);
+    }
     VL_Str_delete(string);
     return true;
 }
@@ -147,6 +171,7 @@ bool VLP_token_symbol_operator(char val){
             return true;
         default:
             return false;
+        #undef C
     }
 }
 bool VLP_Operator(VL_Parser* self, VLP_State* state){
@@ -163,7 +188,40 @@ bool VLP_Operator(VL_Parser* self, VLP_State* state){
             VL_Str_append_char(string, chr);
         }
 
-        state->val = VL_Object_from_symbol(VL_SYM_AND);
+        state->val = NULL;
+        #define C(CHR, SYM)                                                     \
+            case CHR: { state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); break; }
+                
+        #define S(STR, SYM)                                     \
+        if(VL_Str_cmp_cstr(string, STR) == 0){                  \
+            state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); \
+        }
+        switch(string->len){
+            case 1:
+                switch(string->data[0]){
+                    C('+', ADD) C('-', SUB) C('*', MUL) C('/', DIV)
+                    C('>', GT) C('<', LT)
+                    default:
+                        break;
+                }
+                break;
+            case 2:
+                S(">=", GTE)
+                else S("<=", LTE)
+                else S("==", EQ)
+                else S("&&", AND)
+                else S("||", OR)
+                break;
+            default:
+                break;
+        }
+        #undef C
+        #undef S
+
+        if(state->val == NULL){
+            state->val = VL_Object_new(VL_TYPE_NONE);
+        }
+
         VL_Str_delete(string);
         return true;
     }
@@ -183,6 +241,7 @@ bool VLP_FAtom(VL_Parser* self, VLP_State* state){
             return VLP_Number(self, state);
         case '(':
             VLP_next(state, '(');
+            
             if(VLP_IExpr(self, state)){
                 if(!VLP_match_chr(self, state, ')')){
                     VLP_push_err_str(self, &begin, state,
@@ -222,46 +281,41 @@ bool VLP_FExpr(VL_Parser* self, VLP_State* state){
     VLP_State begin = *state;
     
     if(!VLP_FAtom(self, state)){
-        VLP_push_err_str(self, &begin, state,
-            "Expected " VLT_ERR("name") 
-            " of " VLT_ERR("function") 
-        );
         return false;
     }            
 
-    VL_Tuple* tuple = VL_Tuple_new(1);
-    VL_Tuple_append(tuple, state->val);
+    VL_Expr* expr = VL_Expr_new(1);
+    VL_Expr_append(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);    
     
     VLP_State temp = *state;
     size_t i = 0;
     while(true){
         if(!VLP_SpaceSep(self, &temp)){ break; }
-
         if(!VLP_FAtom(self, &temp)){ break; }
 
-        VL_Tuple_append(tuple, temp.val);
+        VL_Expr_append(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);    
         *state = temp;
         i++;
     }
 
     if(i > 0){
-        state->val = VL_Object_wrap_tuple(tuple);
-        return true;
+        state->val = VL_Object_wrap_expr(expr);
     }
-
-    VL_Tuple_delete(tuple);
-    state->ok = false;
-    return false;
+    else{
+        state->val = VL_Expr_pop(expr);
+        VL_Expr_delete(expr);    
+    }
+    return true;
 }
 
 bool VLP_LExpr(VL_Parser* self, VLP_State* state){
-    VLP_State begin = *state;
-    VL_Tuple* tuple = VL_Tuple_new(0);
+    const VLP_State begin = *state;
+    VL_Expr* expr = VL_Expr_new(0);
 
     if(!VLP_match_chr(self, state, '[')){    
-        VL_Tuple_delete(tuple);
+        VL_Expr_delete(expr);
         VLP_push_err_str(self, &begin, state,
             "Expected opening " VLT_ERR("brackets '['")
             " of " VLT_ERR("λ-expr")
@@ -273,9 +327,9 @@ bool VLP_LExpr(VL_Parser* self, VLP_State* state){
     VLP_State temp = *state;
 
     if(VLP_IExpr(self, &temp)){
+        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Object_delete(temp.val);
         *state = temp;
-        VL_Tuple_append(tuple, state->val);
-        VL_Object_delete(state->val);
     
         while(true){
             VLP_Space(self, state);
@@ -288,7 +342,7 @@ bool VLP_LExpr(VL_Parser* self, VLP_State* state){
             VLP_Space(self, &temp);
 
             if(!VLP_IExpr(self, &temp)){
-                VL_Tuple_delete(tuple);
+                VL_Expr_delete(expr);
                 VLP_push_err_str(self, &begin, state, 
                     "Expected " VLT_ERR("ι-expr")
                     " after " VLT_ERR("comma [,]") 
@@ -297,18 +351,18 @@ bool VLP_LExpr(VL_Parser* self, VLP_State* state){
                 return false;
             }
                 
+            VL_Expr_append(expr, temp.val, state->p, temp.p);
+            VL_Object_delete(temp.val);
             *state = temp;
-            VL_Tuple_append(tuple, state->val);
-            VL_Object_delete(state->val);
         }
     }
 
     if(VLP_match_chr(self, state, ']')){
-        state->val = VL_Object_wrap_tuple(tuple);
+        state->val = VL_Object_wrap_expr(expr);
         return true;
     }
 
-    VL_Tuple_delete(tuple);
+    VL_Expr_delete(expr);
     VLP_push_err_str(self, &begin, state, 
         "Expected closing " VLT_ERR("brackets ']'")
         " of " VLT_ERR("λ-expr")
@@ -327,13 +381,16 @@ bool VLP_BExpr(VL_Parser* self, VLP_State* state){
         return false;
     }
 
-    VL_Tuple* tuple = VL_Tuple_new(1);        
+    VL_Expr* expr = VL_Expr_new(0);        
     VLP_State temp = *state;
 
     while(true){
         VLP_Space(self, &temp);
+        *state = temp;
+
         if(!VLP_IExpr(self, &temp)){ break; }
-        VL_Tuple_append(tuple, temp.val);
+        
+        VL_Expr_append(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);    
         *state = temp;
 
@@ -345,7 +402,7 @@ bool VLP_BExpr(VL_Parser* self, VLP_State* state){
                 " of " VLT_ERR("ι-expr")
                 " in " VLT_ERR("β-expr")
             );
-            VL_Tuple_delete(tuple);                
+            VL_Expr_delete(expr);                
             return false;
         }
         
@@ -359,38 +416,25 @@ bool VLP_BExpr(VL_Parser* self, VLP_State* state){
             " of " VLT_ERR("β-expr")
         );
         
-        VL_Tuple_delete(tuple);
+        VL_Expr_delete(expr);
         return false;   
     }
 
-    state->val = VL_Object_wrap_tuple(tuple);
+    state->val = VL_Object_wrap_expr(expr);
     return true; 
-}
-bool VLP_IAtom(VL_Parser* self, VLP_State* state){
-    VLP_State begin = *state;
-    
-    size_t p_err = self->error_stack->len;
-
-    if(VLP_FExpr(self, state)){ 
-        return true; 
-    }
-
-    VLP_pop_errors(self, p_err, self->error_stack->len);
-    *state = begin;
-    return VLP_FAtom(self, state);
 }
 bool VLP_IExpr(VL_Parser* self, VLP_State* state){
     const VLP_State begin = *state;
     
-    VL_Tuple* tuple = VL_Tuple_new(1);
+    VL_Expr* expr = VL_Expr_new(2);
 
     state->val = VL_Object_from_symbol(VL_SYM_INFIX);
-    VL_Tuple_append(tuple, state->val);
+    VL_Expr_append(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);
 
     size_t p_err = self->error_stack->len;    
-    if(!VLP_IAtom(self, state)){
-        VL_Tuple_delete(tuple);
+    if(!VLP_FExpr(self, state)){
+        VL_Expr_delete(expr);
         
         if(p_err == self->error_stack->len){
             VLP_push_err_str(self, &begin, state,
@@ -403,9 +447,8 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
         return false;
     }
 
-    VLP_State temp = *state;
-    
-    VL_Tuple_append(tuple, state->val);
+    VLP_State temp = *state;    
+    VL_Expr_append(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);
     
     while(true){
@@ -416,12 +459,13 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
             VLP_pop_errors(self, p_err, self->error_stack->len);
             break;
         }
-        VL_Tuple_append(tuple, temp.val);
+
+        VL_Expr_append(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);
         *state = temp;
 
         if(!VLP_SpaceSep(self, &temp)){
-            VL_Tuple_delete(tuple);
+            VL_Expr_delete(expr);
             VLP_push_err_str(self, &begin, state,
                 "Expected " VLT_ERR("space")
                 " after " VLT_ERR("operator")
@@ -429,8 +473,8 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
             return false;
         }
 
-        if(!VLP_IAtom(self, &temp)){ 
-            VL_Tuple_delete(tuple);
+        if(!VLP_FExpr(self, &temp)){ 
+            VL_Expr_delete(expr);
             VLP_push_err_str(self, &begin, state,
                 "Expected " VLT_ERR("ι-atom")
                 " after " VLT_ERR("operator")
@@ -438,12 +482,19 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
             return false;
         }
 
-        VL_Tuple_append(tuple, temp.val);
+        VL_Expr_append(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);
-
         *state = temp;
     }
-    state->val = VL_Object_wrap_tuple(tuple);
+
+    if(expr->len > 2){
+        state->val = VL_Object_wrap_expr(expr);
+    }
+    else{
+        state->val = VL_Expr_pop(expr);
+        VL_Expr_delete(expr);
+    }
+
     return true;
 }
 void VLP_NExpr(VL_Parser* self, VLP_State* state){
@@ -451,7 +502,7 @@ void VLP_NExpr(VL_Parser* self, VLP_State* state){
     
     VLP_Space(self, state);
     VLP_IExpr(self, state);
-    if(!state->ok){ return; }
+    if(!state->p.ok){ return; }
     VLP_Space(self, state);
 
     if(!VLP_match_chr(self, state, ';')){

@@ -53,10 +53,13 @@ void VL_ARC_Object_print_type(VL_ARC_Object* self){
 void VL_ObjectData_clear(VL_ObjectData* self, VL_Type type){
     #define C(ENUM, EXPR) case VL_TYPE_##ENUM: EXPR; break;
     switch(type){
-        C(SYMBOL, ) C(LITERAL, )
+        C(SYMBOL, ) C(VARIABLE, )
         C(NONE, ) C(BOOL, ) C(INT, ) C(FLOAT, )
+        
         C(STRING, VL_Str_delete(self->str))
         C(TUPLE, VL_Tuple_delete(self->tuple))
+        C(EXPR, VL_Expr_delete(self->expr))
+
         C(ARC_STRONG, VL_ARC_Object_strong_clear(self->arc))
         C(ARC_WEAK, VL_ARC_Object_weak_clear(self->arc))
     }
@@ -66,10 +69,18 @@ void VL_ObjectData_set(VL_ObjectData* self, VL_ObjectData* src, VL_Type type){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
     #define D(ENUM, TAG) case VL_TYPE_ ## ENUM: self->TAG = src->TAG; break;
     switch(type){
-        D(SYMBOL, symbol) C(LITERAL, ) C(NONE, )
-        D(BOOL, v_bool) D(INT, v_int) D(FLOAT, v_float)
+        C(NONE, )
+
+        D(VARIABLE, v_varid)         
+        D(SYMBOL, symbol) 
+        D(BOOL, v_bool) 
+        D(INT, v_int) 
+        D(FLOAT, v_float)
+ 
         C(STRING, self->str = VL_Str_copy(src->str))
         C(TUPLE, self->tuple = VL_Tuple_copy(src->tuple))
+        C(EXPR, self->expr = VL_Expr_copy(src->expr))
+ 
         C(ARC_STRONG, self->arc = VL_ARC_Object_strong_copy(src->arc))
         C(ARC_WEAK, self->arc = VL_ARC_Object_weak_copy(src->arc))
     }
@@ -79,10 +90,18 @@ void VL_ObjectData_set(VL_ObjectData* self, VL_ObjectData* src, VL_Type type){
 void VL_ObjectData_print(const VL_ObjectData* self, VL_Type type){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
     switch(type){
-        C(SYMBOL, VL_Symbol_print(self->symbol)) C(LITERAL, printf("Literal (WIP)"))
-        C(NONE, printf("None")) C(BOOL, printf((self->v_bool) ? "True" : "False"))
-        C(INT, printf("%lli", self->v_int)) C(FLOAT, printf("%f", self->v_float))
-        C(STRING, VL_Str_print(self->str)) C(TUPLE, VL_Tuple_print(self->tuple))
+        C(SYMBOL, VL_Symbol_print(self->symbol)) 
+        C(VARIABLE, printf("id:%zu", self->v_varid))
+        C(NONE, printf("None")) 
+        C(BOOL, printf((self->v_bool) ? "True" : "False"))
+        
+        C(INT, printf("%lli", self->v_int)) 
+        C(FLOAT, printf("%f", self->v_float))
+        
+        C(STRING, VL_Str_print(self->str)) 
+        C(TUPLE, VL_Tuple_print(self->tuple))
+        C(EXPR, VL_Expr_print(self->expr))
+        
         C(ARC_STRONG, printf("ARC Strong"); VL_ARC_Object_print(self->arc))
         C(ARC_WEAK, printf("ARC Weak"); VL_ARC_Object_print_type(self->arc))
     }
@@ -93,6 +112,7 @@ void VL_ObjectData_print(const VL_ObjectData* self, VL_Type type){
 VL_Object* VL_Object_new(const VL_Type type){
     VL_Object* out = malloc(sizeof* out);
     out->type = type;
+    out->data.v_bool = true;
     return out;
 }
 void VL_Object_clear(VL_Object* self){
@@ -118,6 +138,7 @@ VL_DEF(VL_Object_from_symbol, const VL_Symbol, VL_TYPE_SYMBOL, out->data.symbol 
 VL_DEF(VL_Object_from_cstr, const char*, VL_TYPE_STRING, out->data.str = VL_Str_from_cstr(val); )
 VL_DEF(VL_Object_wrap_str, VL_Str*, VL_TYPE_STRING, out->data.str = val; )
 VL_DEF(VL_Object_wrap_tuple, VL_Tuple*, VL_TYPE_TUPLE, out->data.tuple = val; )
+VL_DEF(VL_Object_wrap_expr, VL_Expr*, VL_TYPE_EXPR, out->data.expr = val; )
 
 #undef VL_FROM_DEF
 
@@ -140,11 +161,6 @@ VL_Object* VL_Object_weak_share(VL_ARC_Object* self){
     return out;
 }
 
-VL_Object* VL_Object_new_Tuple(const size_t len){
-    VL_Object* out = VL_Object_new(VL_TYPE_TUPLE);
-    out->data.tuple = VL_Tuple_new(len);
-    return out;
-}
 void VL_Object_print(const VL_Object* self){
     VL_ObjectData_print(&self->data, self->type);
 }

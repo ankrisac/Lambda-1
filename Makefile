@@ -8,3 +8,7 @@ FLAGS := -O3 -Werror
 PHONY: lin
 lin: $(SRC) $(HDR)
 	gcc -Wall $(FLAGS) $(SRC) -o .bin/main
+
+PHONY: debug
+debug: $(SRC) $(HDR)
+	gcc -g -Wall $(FLAGS) $(SRC) -o .bin/main

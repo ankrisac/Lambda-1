@@ -8,12 +8,19 @@ FLAGS := -O3 -Werror
 PHONY: lin
 lin: $(SRC) $(HDR)
 \tgcc -Wall $(FLAGS) $(SRC) -o .bin/main
+
+PHONY: debug
+debug: $(SRC) $(HDR)
+\tgcc -g -Wall $(FLAGS) $(SRC) -o .bin/main
 ' > Makefile
 
 clear
 case $1 in
-    debug)
+    mem)
         make lin && valgrind ./.bin/main
+    ;;
+    debug)
+        make debug && gdb ./.bin/main
     ;;
     build)
         make lin && ./.bin/main
