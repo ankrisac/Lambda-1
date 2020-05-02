@@ -21,6 +21,7 @@ VL_Object* VL_Object_from_cstr(const char* val);
 VL_Object* VL_Object_wrap_str(VL_Str* val);
 VL_Object* VL_Object_wrap_tuple(VL_Tuple* val);
 VL_Object* VL_Object_wrap_expr(VL_Expr* val);
+VL_Object* VL_Object_wrap_data(VL_ObjectData* data, VL_Type type);
 
 VL_Object* VL_Object_make_ref(VL_Object* self);
 VL_Object* VL_Object_strong_share(VL_ARC_Object* self);

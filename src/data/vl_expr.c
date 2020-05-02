@@ -60,7 +60,7 @@ VL_Expr* VL_Expr_copy(VL_Expr* self){
     return out;
 }
 
-void VL_Expr_append(VL_Expr* self, VL_Object* other, VLP_Pos begin, VLP_Pos end){
+void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VLP_Pos begin, VLP_Pos end){
     if(self->len >= self->reserve_len){
         __VL_Expr_grow(self);
     }
@@ -70,18 +70,54 @@ void VL_Expr_append(VL_Expr* self, VL_Object* other, VLP_Pos begin, VLP_Pos end)
     self->p_end[self->len] = end;
     self->len++;
 }
-VL_Object* VL_Expr_pop(VL_Expr* self){
+void VL_Expr_append(VL_Expr* self, VL_ExprAtom other){
+    if(self->len >= self->reserve_len){
+        __VL_Expr_grow(self);
+    }
+    VL_ObjectData_set(&self->data[self->len], &other.val->data, other.val->type);
+    self->type[self->len] = other.val->type;
+    self->p_begin[self->len] = other.begin;
+    self->p_end[self->len] = other.end;
+    self->len++;
+}
+VL_Object* VL_Expr_pop_Object(VL_Expr* self){
     VL_Object* out;
 
     if(self->len > 0){
         self->len--;
-        out = VL_Object_new(self->type[self->len]);
-        out->data = self->data[self->len];
+        out = VL_Object_wrap_data(&self->data[self->len], self->type[self->len]);
     }
     else{
         out = VL_Object_new(VL_TYPE_NONE);
     }
 
+    return out;
+}
+VL_ExprAtom VL_Expr_pop(VL_Expr* self){
+    VL_ExprAtom out;
+
+    if(self->len > 0){
+        self->len--;
+        out.val = VL_Object_wrap_data(&self->data[self->len], self->type[self->len]);
+    
+        out.begin = self->p_begin[self->len];
+        out.end = self->p_begin[self->len];
+    }
+    else{
+        out.val = VL_Object_new(VL_TYPE_NONE);
+        out.begin = (VLP_Pos){ .ok = false, .pos = 0, .row = 0, .col = 0 };
+        out.end = (VLP_Pos){ .ok = false, .pos = 0, .row = 0, .col = 0 };
+    }
+
+    return out;
+}
+VL_ExprAtom VL_Expr_get(VL_Expr* self, size_t i){
+    VL_ExprAtom out;
+
+    out.val = VL_Object_wrap_data(&self->data[i], self->type[i]);
+    out.begin = self->p_begin[i];
+    out.end = self->p_begin[i];
+    
     return out;
 }
 

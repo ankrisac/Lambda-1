@@ -35,13 +35,13 @@ VL_Str* VL_Str_new(size_t len){
     VL_Str_init(out, len);
     return out;
 }
-VL_Str* VL_Str_copy(VL_Str* self){
+VL_Str* VL_Str_copy(const VL_Str* self){
     VL_Str* out = malloc(sizeof(VL_Str));
     VL_Str_set(out, self);
     return out;
 }
 
-void VL_Str_set(VL_Str* self, VL_Str* src){
+void VL_Str_set(VL_Str* self, const VL_Str* src){
     self->len = src->len;
     __VL_Str_malloc(self, src->len);
     memcpy(self->data, src->data, src->len);
@@ -136,14 +136,14 @@ VL_Str* VL_Str_from_file_cstr(const char* file_path){
 
     return out;
 }
-VL_Str* VL_Str_from_file(VL_Str* file_path){
+VL_Str* VL_Str_from_file(const VL_Str* file_path){
     char* path_str = VL_Str_to_cstr(file_path);
     VL_Str* out = VL_Str_from_file_cstr(path_str);
     free(path_str);
     return out;
 }
 
-char* VL_Str_to_cstr(VL_Str* self){
+char* VL_Str_to_cstr(const VL_Str* self){
     char* out = malloc((self->len + 1) * sizeof* out);
     memcpy(out, self->data, self->len);
     out[self->len] = '\0';

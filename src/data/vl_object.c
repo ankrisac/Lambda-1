@@ -139,8 +139,13 @@ VL_DEF(VL_Object_from_cstr, const char*, VL_TYPE_STRING, out->data.str = VL_Str_
 VL_DEF(VL_Object_wrap_str, VL_Str*, VL_TYPE_STRING, out->data.str = val; )
 VL_DEF(VL_Object_wrap_tuple, VL_Tuple*, VL_TYPE_TUPLE, out->data.tuple = val; )
 VL_DEF(VL_Object_wrap_expr, VL_Expr*, VL_TYPE_EXPR, out->data.expr = val; )
-
 #undef VL_FROM_DEF
+
+VL_Object* VL_Object_wrap_data(VL_ObjectData* data, VL_Type type){
+    VL_Object* out = VL_Object_new(type);
+    out->data = *data;
+    return out;
+}
 
 VL_Object* VL_Object_make_ref(VL_Object* self){    
     VL_Object* out = VL_Object_new(VL_TYPE_ARC_STRONG);    

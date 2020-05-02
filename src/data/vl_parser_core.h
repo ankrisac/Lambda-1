@@ -15,6 +15,10 @@
 
 #define VLT_ERR(MSG) VLT_BOLD VLT_RED MSG VLT_RESET
 
+VL_Parser* VL_Parser_new(const VL_Str* file_path);
+void VL_Parser_clear(VL_Parser* self);
+void VL_Parser_delete(VL_Parser* self);
+
 char VLP_peek(VL_Parser* self, VLP_State* state);
 void VLP_next(VLP_State* state, char chr);
 char VLP_pop(VL_Parser* self, VLP_State* state);

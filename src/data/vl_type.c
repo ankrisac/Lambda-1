@@ -6,11 +6,13 @@ void VL_Symbol_print(const VL_Symbol symbol){
         P(ADD, "+") P(SUB, "-") P(MUL, "*") P(DIV, "/")
         P(AND, "&&") P(OR, "||") P(NOT, "not")
         P(GTE, ">=") P(LTE, "<=") P(GT, ">") P(LT, "<") P(EQ, "==")
+        P(SET, "=")
         P(FLOAT, "float") P(INT, "int")
         P(PRINT, "print") P(INFIX, "infix")
     }
     #undef P
 }
+
 void VL_Type_print(const VL_Type type){
     #define P(ENUM, NAME) case VL_TYPE_ ## ENUM: printf(NAME); break;
     switch(type){

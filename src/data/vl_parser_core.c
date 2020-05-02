@@ -1,5 +1,22 @@
 #include "vl_parser_core.h"
 
+VL_Parser* VL_Parser_new(const VL_Str* file_path){
+    VL_Parser* out = malloc(sizeof* out);
+    out->error_stack = VL_Tuple_new(0);
+    out->file_path = VL_Str_copy(file_path);
+    out->stream = VL_Str_from_file(file_path);
+    return out;
+}
+void VL_Parser_clear(VL_Parser* self){
+    VL_Tuple_delete(self->error_stack);
+    VL_Str_delete(self->stream);
+    VL_Str_delete(self->file_path);
+}
+void VL_Parser_delete(VL_Parser* self){
+    VL_Parser_clear(self);
+    free(self);
+}
+
 char VLP_peek(VL_Parser* self, VLP_State* state){
     if(state->p.pos < self->stream->len){
         return self->stream->data[state->p.pos];

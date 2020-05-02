@@ -200,7 +200,7 @@ bool VLP_Operator(VL_Parser* self, VLP_State* state){
             case 1:
                 switch(string->data[0]){
                     C('+', ADD) C('-', SUB) C('*', MUL) C('/', DIV)
-                    C('>', GT) C('<', LT)
+                    C('>', GT) C('<', LT) C('=', SET)
                     default:
                         break;
                 }
@@ -285,7 +285,7 @@ bool VLP_FExpr(VL_Parser* self, VLP_State* state){
     }            
 
     VL_Expr* expr = VL_Expr_new(1);
-    VL_Expr_append(expr, state->val, begin.p, state->p);
+    VL_Expr_append_Object(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);    
     
     VLP_State temp = *state;
@@ -294,7 +294,7 @@ bool VLP_FExpr(VL_Parser* self, VLP_State* state){
         if(!VLP_SpaceSep(self, &temp)){ break; }
         if(!VLP_FAtom(self, &temp)){ break; }
 
-        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);    
         *state = temp;
         i++;
@@ -304,7 +304,7 @@ bool VLP_FExpr(VL_Parser* self, VLP_State* state){
         state->val = VL_Object_wrap_expr(expr);
     }
     else{
-        state->val = VL_Expr_pop(expr);
+        state->val = VL_Expr_pop_Object(expr);
         VL_Expr_delete(expr);    
     }
     return true;
@@ -327,7 +327,7 @@ bool VLP_LExpr(VL_Parser* self, VLP_State* state){
     VLP_State temp = *state;
 
     if(VLP_IExpr(self, &temp)){
-        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);
         *state = temp;
     
@@ -351,7 +351,7 @@ bool VLP_LExpr(VL_Parser* self, VLP_State* state){
                 return false;
             }
                 
-            VL_Expr_append(expr, temp.val, state->p, temp.p);
+            VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
             VL_Object_delete(temp.val);
             *state = temp;
         }
@@ -390,7 +390,7 @@ bool VLP_BExpr(VL_Parser* self, VLP_State* state){
 
         if(!VLP_IExpr(self, &temp)){ break; }
         
-        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);    
         *state = temp;
 
@@ -429,7 +429,7 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
     VL_Expr* expr = VL_Expr_new(2);
 
     state->val = VL_Object_from_symbol(VL_SYM_INFIX);
-    VL_Expr_append(expr, state->val, begin.p, state->p);
+    VL_Expr_append_Object(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);
 
     size_t p_err = self->error_stack->len;    
@@ -448,7 +448,7 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
     }
 
     VLP_State temp = *state;    
-    VL_Expr_append(expr, state->val, begin.p, state->p);
+    VL_Expr_append_Object(expr, state->val, begin.p, state->p);
     VL_Object_delete(state->val);
     
     while(true){
@@ -460,7 +460,7 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
             break;
         }
 
-        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);
         *state = temp;
 
@@ -482,7 +482,7 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
             return false;
         }
 
-        VL_Expr_append(expr, temp.val, state->p, temp.p);
+        VL_Expr_append_Object(expr, temp.val, state->p, temp.p);
         VL_Object_delete(temp.val);
         *state = temp;
     }
@@ -491,7 +491,7 @@ bool VLP_IExpr(VL_Parser* self, VLP_State* state){
         state->val = VL_Object_wrap_expr(expr);
     }
     else{
-        state->val = VL_Expr_pop(expr);
+        state->val = VL_Expr_pop_Object(expr);
         VL_Expr_delete(expr);
     }
 

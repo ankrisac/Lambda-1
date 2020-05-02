@@ -9,7 +9,7 @@
 X(ADD)      X(SUB)      X(MUL)      X(DIV)              \
 X(AND)      X(OR)       X(NOT)                          \
 X(LTE)      X(GTE)      X(LT)       X(GT)       X(EQ)   \
-X(FLOAT)    X(INT)      X(PRINT)    X(INFIX)
+X(FLOAT)    X(INT)      X(PRINT)    X(INFIX)    X(SET)  
 #define NAME(X) VL_SYM_ ## X ,
 
 typedef enum{ MAPPING(NAME) } VL_Symbol;
