@@ -1,4 +1,4 @@
-#include "vl_type.h"
+#include "type.h"
 
 void VL_Symbol_print(const VL_Symbol symbol){
     #define P(ENUM, NAME) case VL_SYM_ ## ENUM: printf(NAME); break;
@@ -6,7 +6,7 @@ void VL_Symbol_print(const VL_Symbol symbol){
         P(ADD, "+") P(SUB, "-") P(MUL, "*") P(DIV, "/")
         P(AND, "&&") P(OR, "||") P(NOT, "not")
         P(GTE, ">=") P(LTE, "<=") P(GT, ">") P(LT, "<") P(EQ, "==")
-        P(SET, "=")
+        P(SET, "=") P(DO, "do")
         P(FLOAT, "float") P(INT, "int")
         P(PRINT, "print") P(INFIX, "infix")
     }

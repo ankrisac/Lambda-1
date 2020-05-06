@@ -1,15 +1,12 @@
 #pragma once
-#include <stdlib.h>
-#include <stdbool.h>
-
-#include <stdio.h>
-#include <string.h>
+#include "../util.h"
 
 #define MAPPING(X)                                      \
 X(ADD)      X(SUB)      X(MUL)      X(DIV)              \
 X(AND)      X(OR)       X(NOT)                          \
 X(LTE)      X(GTE)      X(LT)       X(GT)       X(EQ)   \
-X(FLOAT)    X(INT)      X(PRINT)    X(INFIX)    X(SET)  
+X(FLOAT)    X(INT)      X(PRINT)    X(INFIX)    X(SET)  \
+X(DO)
 #define NAME(X) VL_SYM_ ## X ,
 
 typedef enum{ MAPPING(NAME) } VL_Symbol;
@@ -32,11 +29,24 @@ typedef double VL_Float;
 
 typedef struct VL_Str VL_Str;
 typedef struct VL_Tuple VL_Tuple;
-typedef struct VL_Expr VL_Expr;
 
 typedef struct VL_ARC_Object VL_ARC_Object;
 typedef union VL_ObjectData VL_ObjectData;
 typedef struct VL_Object VL_Object;
+
+
+typedef struct VL_ExprAtom VL_ExprAtom;
+typedef struct VL_Expr VL_Expr;
+
+typedef struct VL_Parser VL_Parser;
+typedef struct VL_Compiler VL_Compiler;
+
+typedef struct VL_SrcPos VL_SrcPos;
+typedef struct VL_ParseState VL_ParseState;
+
+typedef struct VL_ModuleSrc VL_ModuleSrc;
+typedef struct VL_Module VL_Module;
+typedef struct VL_Core VL_Core;
 
 struct VL_Str{
     char* data;
@@ -45,65 +55,49 @@ struct VL_Str{
 };
 
 struct VL_Tuple{
-    VL_ObjectData* data;
-    VL_Type* type;
-    
+    VL_Object* data;
     size_t len;
     size_t reserve_len;    
 };
 
-typedef struct{
-    VL_Str* file_path;
-    VL_Str* stream;
-    VL_Tuple* error_stack;
-}VL_Parser;
-
-typedef struct{
-    size_t pos;
-    size_t row;
-    size_t col;
-    bool ok;
-}VLP_Pos;
-
-typedef struct{
-    VLP_Pos p;
-    VL_Object* val;
-}VLP_State;
-
-struct VL_Expr{
-    VL_ObjectData* data;
-    VL_Type* type;
-    VLP_Pos* p_begin;
-    VLP_Pos* p_end;
-    
-    size_t len;
-    size_t reserve_len;    
-};
-
-union VL_ObjectData{
-    VL_Symbol symbol;
-    VL_Variable v_varid;
-
-    VL_Bool v_bool;
-    VL_Int v_int;
-    VL_Float v_float;
-
-    VL_Str* str;
-    VL_Tuple* tuple;
-    VL_Expr* expr;
-
-    VL_ARC_Object* arc;
-};
 struct VL_Object{
-    VL_ObjectData data;
+    union{
+        VL_Symbol symbol;
+        VL_Variable v_varid;
+
+        VL_Bool v_bool;
+        VL_Int v_int;
+        VL_Float v_float;
+
+        VL_Str* str;
+        VL_Tuple* tuple;
+        VL_Expr* expr;
+
+        VL_ARC_Object* arc;
+    }data;
     VL_Type type;
 };
-
 struct VL_ARC_Object{
     VL_Object data;
 
     size_t ref_count;
     size_t weak_ref_count;
+};
+
+struct VL_SrcPos{
+    size_t pos;
+    size_t row;
+    size_t col;
+};
+struct VL_ExprAtom{
+    VL_Object* val;
+    VL_SrcPos begin;
+    VL_SrcPos end;
+};
+struct VL_Expr{
+    VL_ExprAtom* data;
+    size_t len;
+    size_t reserve_len;    
 };
 
 #undef NAME
@@ -112,7 +106,7 @@ struct VL_ARC_Object{
 void VL_Type_print(const VL_Type type);
 void VL_Symbol_print(const VL_Symbol symbol);
 
-#include "vl_str.h"
-#include "vl_tuple.h"
-#include "vl_expr.h"
-#include "vl_object.h"
+#include "str.h"
+#include "tuple.h"
+#include "expr.h"
+#include "object.h"

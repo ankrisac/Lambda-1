@@ -17,7 +17,7 @@ debug: $(SRC) $(HDR)
 clear
 case $1 in
     mem)
-        make lin && valgrind ./.bin/main
+        make lin && valgrind --leak-check=full --track-origins=yes ./.bin/main
     ;;
     debug)
         make debug && gdb ./.bin/main

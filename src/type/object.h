@@ -1,16 +1,17 @@
 #pragma once
-#include "vl_type.h"
-
-void VL_ObjectData_clear(VL_ObjectData* self, VL_Type type);
-void VL_ObjectData_set(VL_ObjectData* self, VL_ObjectData* src, VL_Type type);
-void VL_ObjectData_print(const VL_ObjectData* self, VL_Type type);
+#include "type.h"
 
 VL_ARC_Object* VL_ARC_Object_new(VL_Object* self);
 void VL_ARC_Object_strong_clear(VL_ARC_Object* self);
 void VL_ARC_Object_weak_clear(VL_ARC_Object* self);
 void VL_ARC_Object_print(VL_ARC_Object* self);
 
+void VL_Object_init(VL_Object* self, const VL_Type type);
 VL_Object* VL_Object_new(const VL_Type type);
+
+void VL_Object_copy(VL_Object* self, const VL_Object* src);
+VL_Object* VL_Object_clone(const VL_Object* self);
+VL_Object* VL_Object_move(VL_Object* self);
 
 VL_Object* VL_Object_from_bool(const VL_Bool val);
 VL_Object* VL_Object_from_int(const VL_Int val);
