@@ -9,13 +9,13 @@
 #include <time.h>
 
 void VIPER(const char* path_name){
-    VL_Module* mod = VL_Module_new();
+    VL_Core* viper = VL_Core_new();
     
     VL_Str* path = VL_Str_from_cstr(path_name);
-    VL_Module_parse(mod, path);
+    VL_Core_exec_file(viper, path);
     VL_Str_delete(path);
 
-    VL_Module_delete(mod);
+    VL_Core_delete(viper);
 }
 
 #define PERF(N, EXPR, MSG)                                      \
@@ -29,7 +29,7 @@ void VIPER(const char* path_name){
 }
 
 int main(){
-    VIPER("data/main.vl");
+    PERF(1, VIPER("data/main.vl");, "Complete process: ")
 
     return 0;
 }

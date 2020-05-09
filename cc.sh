@@ -3,7 +3,7 @@ SRC_DIR := src
 SRC := $(shell find $(SRC_DIR) -name "*.c")
 HDR := $(shell find $(SRC_DIR) -name "*.h")
 
-FLAGS := -O3 -Werror 
+FLAGS := -O3 -Werror -pedantic
 
 PHONY: lin
 lin: $(SRC) $(HDR)

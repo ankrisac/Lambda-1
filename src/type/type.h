@@ -4,9 +4,13 @@
 #define MAPPING(X)                                      \
 X(ADD)      X(SUB)      X(MUL)      X(DIV)              \
 X(AND)      X(OR)       X(NOT)                          \
-X(LTE)      X(GTE)      X(LT)       X(GT)       X(EQ)   \
-X(FLOAT)    X(INT)      X(PRINT)    X(INFIX)    X(SET)  \
-X(DO)
+X(LTE)      X(GTE)      X(LT)       X(GT)               \
+X(EQ)       X(NEQ)                                      \
+X(FLOAT)    X(INT)                                      \
+X(SET)                                                  \
+X(PRINT)                                                \
+X(DO)       X(INFIX)
+
 #define NAME(X) VL_SYM_ ## X ,
 
 typedef enum{ MAPPING(NAME) } VL_Symbol;
@@ -16,7 +20,7 @@ typedef size_t VL_Variable;
 #undef NAME
 
 #define MAPPING(X)                      \
-X(SYMBOL)       X(VARIABLE)      X(NONE) \
+X(SYMBOL)       X(VARIABLE)      X(NONE)\
 X(BOOL)         X(INT)          X(FLOAT)\
 X(STRING)       X(TUPLE)        X(EXPR) \
 X(ARC_STRONG)   X(ARC_WEAK)             
@@ -38,15 +42,8 @@ typedef struct VL_Object VL_Object;
 typedef struct VL_ExprAtom VL_ExprAtom;
 typedef struct VL_Expr VL_Expr;
 
-typedef struct VL_Parser VL_Parser;
-typedef struct VL_Compiler VL_Compiler;
 
 typedef struct VL_SrcPos VL_SrcPos;
-typedef struct VL_ParseState VL_ParseState;
-
-typedef struct VL_ModuleSrc VL_ModuleSrc;
-typedef struct VL_Module VL_Module;
-typedef struct VL_Core VL_Core;
 
 struct VL_Str{
     char* data;
@@ -93,6 +90,7 @@ struct VL_ExprAtom{
     VL_Object* val;
     VL_SrcPos begin;
     VL_SrcPos end;
+    size_t module_id;
 };
 struct VL_Expr{
     VL_ExprAtom* data;
@@ -103,6 +101,7 @@ struct VL_Expr{
 #undef NAME
 #undef MAPPING
 
+void VL_Type_perror(VL_Type type);
 void VL_Type_print(const VL_Type type);
 void VL_Symbol_print(const VL_Symbol symbol);
 

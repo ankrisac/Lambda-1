@@ -8,7 +8,8 @@ void VL_ExprAtom_delete(VL_ExprAtom* self);
 
 void VL_ExprAtom_copy(VL_ExprAtom* self, const VL_ExprAtom* src);
 VL_ExprAtom* VL_ExprAtom_clone(const VL_ExprAtom* self);
-VL_ExprAtom* VL_ExprAtom_move(VL_ExprAtom* self);
+void VL_ExprAtom_move(VL_ExprAtom* self, VL_ExprAtom* src);
+VL_ExprAtom* VL_ExprAtom_wrap(VL_ExprAtom* self);
 
 void VL_ExprAtom_print(const VL_ExprAtom* self);
 
@@ -21,7 +22,7 @@ void VL_Expr_delete(VL_Expr* self);
 void VL_Expr_copy(VL_Expr* self, const VL_Expr* src);
 VL_Expr* VL_Expr_clone(const VL_Expr* self);
 
-void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end);
+void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end, size_t module_id);
 void VL_Expr_append(VL_Expr* self, VL_ExprAtom* other);
 
 VL_Object* VL_Expr_pop_Object(VL_Expr* self);

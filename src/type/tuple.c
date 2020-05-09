@@ -82,7 +82,6 @@ void VL_Tuple_rset(VL_Tuple* self, size_t i, VL_Object* value){
     self->data[self->len - i - 1] = *value;
 }
 
-
 void VL_Tuple_print(const VL_Tuple* self){
     printf("(");
     if(self->len >= 1){

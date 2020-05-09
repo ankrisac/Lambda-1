@@ -85,7 +85,8 @@ void VL_Object_delete(VL_Object* self){
 void VL_Object_copy(VL_Object* self, const VL_Object* src){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
     #define D(ENUM, TAG) case VL_TYPE_ ## ENUM: self->data.TAG = src->data.TAG; break;
-    switch(self->type){
+    
+    switch(src->type){
         C(NONE, )
 
         D(VARIABLE, v_varid)         
@@ -101,6 +102,7 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
         C(ARC_STRONG, self->data.arc = VL_ARC_Object_strong_copy(src->data.arc))
         C(ARC_WEAK, self->data.arc = VL_ARC_Object_weak_copy(src->data.arc))
     }
+
     #undef C
     #undef D
 

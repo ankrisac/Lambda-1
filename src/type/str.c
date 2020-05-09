@@ -36,7 +36,10 @@ void VL_Str_delete(VL_Str* self){
 }
 
 void VL_Str_print(const VL_Str* self){
-    printf("'%.*s'", (int)self->len, self->data);
+    printf("%.*s", (int)self->len, self->data);
+}
+void VL_Str_repr(const VL_Str* self){
+    printf("\"%.*s\"", (int)self->len, self->data);
 }
 void VL_Str_print_internal(const VL_Str* self){
     printf("[%zu:%zu][%.*s]", self->len, self->reserve_len, (int)self->len, self->data);
@@ -120,20 +123,19 @@ VL_Str* VL_Str_from_int(VL_Int value){
 }
 VL_Str* VL_Str_from_file_cstr(const char* file_path){
     FILE* file = fopen(file_path, "r");
-    VL_Str* out = VL_Str_new(0);
-    
+
     if(file != NULL){
+        VL_Str* out = VL_Str_new(0);
+    
         char chr;
         while((chr = fgetc(file)) != EOF){
             VL_Str_append_char(out, chr);
         }
         fclose(file);    
-    }
-    else{
-        printf("File Error: [%s] is an invalid directory\n", file_path);
+        return out;
     }
 
-    return out;
+    return NULL;
 }
 VL_Str* VL_Str_from_file(const VL_Str* file_path){
     char* path_str = VL_Str_to_cstr(file_path);
@@ -155,6 +157,26 @@ void VL_Str_reverse(VL_Str* self){
         self->data[i] = self->data[j];
         self->data[j] = temp;
     }
+}
+int VL_Str_cmp(const VL_Str* self, const VL_Str* other){
+    size_t len = (self->len > other->len) ? other->len : self->len;
+
+    for(size_t i = 0; i < len; i++){
+        if(self->data[i] < other->data[i]){
+            return -1;
+        }
+        else if(self->data[i] > other->data[i]){
+            return +1;
+        }
+    }
+    
+    if(self->len < other->len){
+        return -1;
+    }
+    else if(self->len == other->len){
+        return 0;
+    }
+    return 1;
 }
 int VL_Str_cmp_cstr(const VL_Str* self, const char* str){
     const char* j = str;

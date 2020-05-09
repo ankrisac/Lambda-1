@@ -26,5 +26,7 @@ VL_Str* VL_Str_from_file(const VL_Str* file_path);
 char* VL_Str_to_cstr(const VL_Str* self);
 
 void VL_Str_reverse(VL_Str* self);
+
+int VL_Str_cmp(const VL_Str* self, const VL_Str* other);
 int VL_Str_cmp_cstr(const VL_Str* self, const char* str);
 bool VL_Str_is_char(const VL_Str* self, const char value);

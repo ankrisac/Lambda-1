@@ -2,6 +2,7 @@
 
 void VL_ExprAtom_init(VL_ExprAtom* self){
     self->val = VL_Object_new(VL_TYPE_NONE);
+    self->module_id = 0;
 }
 VL_ExprAtom* VL_ExprAtom_new(){
     VL_ExprAtom* out = malloc(sizeof* out);
@@ -17,20 +18,25 @@ void VL_ExprAtom_delete(VL_ExprAtom* self){
 }
 
 void VL_ExprAtom_copy(VL_ExprAtom* self, const VL_ExprAtom* src){
-    VL_Object_copy(self->val, src->val);
+    self->val = VL_Object_clone(src->val);
     self->begin = src->begin;
     self->end = src->end;
+    self->module_id = src->module_id;
 }
 VL_ExprAtom* VL_ExprAtom_clone(const VL_ExprAtom* self){
     VL_ExprAtom* out = malloc(sizeof* out);
     VL_ExprAtom_copy(out, self);
     return out;
 }
-VL_ExprAtom* VL_ExprAtom_move(VL_ExprAtom* self){
+void VL_ExprAtom_move(VL_ExprAtom* self, VL_ExprAtom* src){
+    self->val = src->val;
+    self->begin = src->begin;
+    self->end = src->end;
+    self->module_id = src->module_id;
+}
+VL_ExprAtom* VL_ExprAtom_wrap(VL_ExprAtom* self){
     VL_ExprAtom* out = malloc(sizeof* out);
-    out->val = self->val;
-    out->begin = self->begin;
-    out->end = self->end;
+    VL_ExprAtom_move(out, self);
     return out;
 }
 
@@ -76,7 +82,7 @@ void VL_Expr_delete(VL_Expr* self){
 void VL_Expr_copy(VL_Expr* self, const VL_Expr* src){
     self->len = src->len;
     __VL_Expr_malloc(self, self->len);
-    
+
     for(size_t i = 0; i < self->len; i++){
         VL_ExprAtom_copy(&self->data[i], &src->data[i]);
     }
@@ -87,11 +93,11 @@ VL_Expr* VL_Expr_clone(const VL_Expr* self){
     return out;
 }
 
-void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end){
+void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end, size_t module_id){
     if(self->len >= self->reserve_len){
         __VL_Expr_grow(self);
     }
-    self->data[self->len] = (VL_ExprAtom){ .val = other, .begin = begin, .end = end };
+    self->data[self->len] = (VL_ExprAtom){ .val = other, .begin = begin, .end = end, .module_id = module_id };
     self->len++;
 }
 void VL_Expr_append(VL_Expr* self, VL_ExprAtom* other){
@@ -111,7 +117,7 @@ VL_Object* VL_Expr_pop_Object(VL_Expr* self){
 VL_ExprAtom* VL_Expr_pop(VL_Expr* self){
     if(self->len > 0){
         self->len--;
-        return VL_ExprAtom_move(&self->data[self->len]);
+        return VL_ExprAtom_wrap(&self->data[self->len]);
     }
     return VL_ExprAtom_new();
 }
