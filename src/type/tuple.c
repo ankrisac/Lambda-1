@@ -61,13 +61,24 @@ void VL_Tuple_append(VL_Tuple* self, VL_Object* value){
     self->data[self->len] = *value;
     self->len++;
 }
+
+void VL_Tuple_pop_to(VL_Tuple* self, VL_Object* dest){
+    if(self->len > 0){
+        self->len--;
+        VL_Object_move(&self->data[self->len], dest);
+    }
+    else{
+        dest->type = VL_TYPE_NONE;
+    }
+}
 VL_Object* VL_Tuple_pop(VL_Tuple* self){
     if(self->len > 0){
         self->len--;
-        return VL_Object_move(&self->data[self->len]);
+        return VL_Object_move_ref(&self->data[self->len]);
     }
     return VL_Object_new(VL_TYPE_NONE);
 }
+
 
 const VL_Object* VL_Tuple_get(const VL_Tuple* self, size_t i){
     return &self->data[i];
@@ -83,7 +94,7 @@ void VL_Tuple_rset(VL_Tuple* self, size_t i, VL_Object* value){
 }
 
 void VL_Tuple_print(const VL_Tuple* self){
-    printf("(");
+    printf("[");
     if(self->len >= 1){
         VL_Object_print(&self->data[0]);
 
@@ -92,5 +103,8 @@ void VL_Tuple_print(const VL_Tuple* self){
             VL_Object_print(&self->data[i]);
         }
     }
-    printf(")");
+    printf("]");
+}
+void VL_Tuple_repr(const VL_Tuple* self){
+    VL_Tuple_print(self);
 }

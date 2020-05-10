@@ -143,6 +143,16 @@ VL_Str* VL_Str_from_file(const VL_Str* file_path){
     free(path_str);
     return out;
 }
+VL_Str* VL_Str_from_cin(){
+    char* buffer = NULL;
+    size_t reserve_len = 0;
+    size_t n = getline(&buffer, &reserve_len, stdin);
+
+    VL_Str* out = VL_Str_new(n);
+    VL_Str_append_cstr(out, buffer);
+    free(buffer);
+    return out;
+}
 
 char* VL_Str_to_cstr(const VL_Str* self){
     char* out = malloc((self->len + 1) * sizeof* out);

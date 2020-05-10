@@ -63,7 +63,7 @@ bool VL_Module_parse_Number(VL_Module* self, VL_ParseState* state){
     }
     
     if(!VL_Module_match_chr(self, state, '.')){
-        state->val = VL_Object_from_int(Int);
+        state->val = VL_Object_wrap_int(Int);
         return true;
     }   
     if(!VL_match_digit(VL_Module_peek(self, state))){
@@ -79,7 +79,7 @@ bool VL_Module_parse_Number(VL_Module* self, VL_ParseState* state){
     for(char chr; VL_match_digit(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
         Frac += (pos *= 0.1)* (VL_Float)(chr - '0');
     }
-    state->val = VL_Object_from_float((VL_Float)Int + Frac);
+    state->val = VL_Object_wrap_float((VL_Float)Int + Frac);
     
     return true;
 }
@@ -151,11 +151,12 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
     state->val = NULL;
     #define S(STR, SYM)                                     \
     if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-        state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); \
+        state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); \
     }
     switch(string->len){
         case 2:{
             S("do", DO)
+            else S("if", IF)
             break;
         }
         case 3:{
@@ -165,19 +166,23 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
         }
         case 4:{
             if(VL_Str_cmp_cstr(string, "True") == 0){
-                state->val = VL_Object_from_bool(true);
+                state->val = VL_Object_wrap_bool(true);
             }
             else if(VL_Str_cmp_cstr(string, "None") == 0){
                 state->val = VL_Object_new(VL_TYPE_NONE);
             }
+            else S("time", TIME)
             break;
         }
         case 5:{
             S("float", FLOAT)
             else S("infix", INFIX)
             else S("print", PRINT)
+            else S("while", WHILE)
+            else S("input", INPUT)
+            else S("tuple", TUPLE)
             else if(VL_Str_cmp_cstr(string, "False") == 0){
-                state->val = VL_Object_from_bool(false);
+                state->val = VL_Object_wrap_bool(false);
             }
             break;
         }
@@ -208,11 +213,11 @@ bool VL_Module_parse_Operator(VL_Module* self, VL_ParseState* state){
         state->val = NULL;
         
         #define C(CHR, SYM)                                                     \
-            case CHR: { state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); break; }
+            case CHR: { state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); break; }
                 
         #define S(STR, SYM)                                     \
         if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-            state->val = VL_Object_from_symbol(VL_SYM_ ## SYM); \
+            state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); \
         }
         switch(string->len){
             case 1:
@@ -474,7 +479,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
     
     VL_Expr* expr = VL_Expr_new(2);
 
-    state->val = VL_Object_from_symbol(VL_SYM_INFIX);
+    state->val = VL_Object_wrap_symbol(VL_SYM_INFIX);
     VL_Expr_append_Object(expr, state->val, begin.p, state->p, self->id);
     
     size_t p_err = self->error_stack->len;    

@@ -25,6 +25,9 @@ void VL_Core_data_push_bool(VL_Core* self, bool val){
     temp.data.v_bool = val;
     VL_Tuple_append(self->stack.data, &temp);
 }
+void VL_Core_data_pop_to(VL_Core* self, VL_Object* dest){
+    VL_Tuple_pop_to(self->stack.data, dest);
+}
 VL_Object* VL_Core_data_pop(VL_Core* self){
     return VL_Tuple_pop(self->stack.data);
 }
@@ -76,6 +79,61 @@ void VL_Core_apply_print(VL_Core* self, const VL_Expr* expr){
         VL_Core_data_drop(self);
     }
 }
+void VL_Core_apply_input(VL_Core* self, const VL_Expr* expr){
+    for(size_t i = 1; i < expr->len; i++){
+        VL_Core_eval_obj(self, VL_Expr_get(expr, i)->val);
+        VL_Object_print(VL_Tuple_rget(self->stack.data, 0));
+        VL_Core_data_drop(self);
+    }
+    VL_Object temp;
+    VL_Object_set_str(&temp, VL_Str_from_cin());
+    VL_Tuple_append(self->stack.data, &temp);
+}
+void VL_Core_apply_time(VL_Core* self, const VL_Expr* expr){
+    VL_Object time;
+    time.type = VL_TYPE_FLOAT;
+    time.data.v_float = (VL_Float)clock() / CLOCKS_PER_SEC;
+    VL_Tuple_append(self->stack.data, &time);
+}
+
+void tuple_args(VL_Core* self, VL_Expr* expr){
+    VL_Tuple* tuple = VL_Tuple_new(expr->len);
+    
+    VL_Object temp;
+    for(size_t i = 0; i < expr->len; i++){
+        VL_Core_eval_obj(self, VL_Expr_get(expr, i)->val);
+        
+        VL_Core_data_pop_to(self, &temp);
+        VL_Tuple_append(tuple, &temp);    
+    }
+    VL_Object_set_tuple(&temp, tuple);
+    VL_Tuple_append(self->stack.data, &temp);
+}
+void VL_Core_apply_tuple(VL_Core* self, const VL_Expr* expr){
+    if(expr->len == 2){
+        const VL_Object* inner = VL_Expr_get(expr, 1)->val;
+
+        switch(inner->type){
+            case VL_TYPE_EXPR:
+                tuple_args(self, inner->data.expr);
+                break;
+            case VL_TYPE_TUPLE:
+                VL_Core_eval_obj(self, inner);
+                break;
+            default:
+                VL_Core_push_error(self, VL_Expr_get(expr, 0), 
+                    VLT_ERR("tuple") " is not defined for "
+                );
+                VL_Type_perror(VL_Expr_get(expr, 1)->val->type);
+                break;
+        }
+    }
+    else{
+        VL_Core_push_error(self, VL_Expr_get(expr, 0), 
+            VLT_ERR("tuple") "expected only " VLT_ERR("1") " argument!"
+        );
+    }
+}
 void do_args(VL_Core* self, const VL_Expr* expr){
     for(size_t i = 0; i + 1 < expr->len; i++){
         VL_Core_eval_obj(self, VL_Expr_get(expr, i)->val);
@@ -93,9 +151,7 @@ void VL_Core_apply_do(VL_Core* self, const VL_Expr* expr){
             do_args(self, inner->data.expr);
         }
         else{
-            VL_Core_push_error(self, VL_Expr_get(expr, 0), 
-                VLT_ERR("int") "expected only " VLT_ERR("1") " argument!"
-            );
+            VL_Core_eval_obj(self, VL_Expr_rget(expr, 0)->val);
         }
     }
     else{
@@ -104,24 +160,84 @@ void VL_Core_apply_do(VL_Core* self, const VL_Expr* expr){
         );
     }
 }
+void VL_Core_apply_if(VL_Core* self, const VL_Expr* expr){
+    if(expr->len == 4){
+        VL_Core_eval_obj(self, VL_Expr_get(expr, 1)->val);
+        VL_Object* cond = VL_Core_data_rget(self, 0);
+
+        if(cond->type == VL_TYPE_BOOL){
+            bool ok = cond->data.v_bool;
+            VL_Core_data_drop(self);
+            
+            if(ok){
+                VL_Core_eval_obj(self, VL_Expr_get(expr, 2)->val);
+            }
+            else{
+                VL_Core_eval_obj(self, VL_Expr_get(expr, 3)->val);
+            }
+        }
+        else{
+            VL_Core_data_drop(self);
+            VL_Core_push_error(self, VL_Expr_get(expr, 1),
+                VLT_ERR("if") " condition is not a " VLT_ERR("boolean")
+            );
+        }
+    }
+    else{
+        VL_Core_push_error(self, VL_Expr_get(expr, 0), 
+            VLT_ERR("if") "expected " VLT_ERR("3") " arguments!"
+        );
+    }
+}
+void VL_Core_apply_while(VL_Core* self, const VL_Expr* expr){
+    if(expr->len == 3){
+        while(true){
+            VL_Core_eval_obj(self, VL_Expr_get(expr, 1)->val);
+            VL_Object* cond = VL_Core_data_rget(self, 0);
+            
+            if(cond->type == VL_TYPE_BOOL){
+                bool ok = cond->data.v_bool;
+                VL_Core_data_drop(self);
+
+                if(ok){
+                    VL_Core_eval_obj(self, VL_Expr_get(expr, 2)->val);
+                }
+                else{
+                    break;
+                }
+            }
+            else{
+                VL_Core_data_drop(self);
+                VL_Core_push_error(self, VL_Expr_get(expr, 1),
+                    VLT_ERR("while") " condition is not a " VLT_ERR("boolean")
+                );
+            }
+        }
+    }
+    else{
+        VL_Core_push_error(self, VL_Expr_get(expr, 0), 
+            VLT_ERR("while") "expected " VLT_ERR("2") " arguments!"
+        );
+    }
+}
 
 void VL_Core_eval_symbol(VL_Core* self, VL_Symbol symbol, const VL_Expr* expr){
     #define C(ENUM, FUNCTION) case VL_SYM_##ENUM: VL_Core_apply_##FUNCTION(self, expr); break;
     
     switch(symbol){
-        C(PRINT, print)
-        C(DO, do)
-        C(INT, int) C(FLOAT, float)
-        C(ADD, add) C(SUB, sub) C(MUL, mul) C(DIV, div)
-        C(LT, lt)   C(LTE, lte) C(GT, gt)   C(GTE, gte)
-        C(AND, and) C(OR, or)   C(NOT, not)
-        C(EQ, eq)   C(NEQ, neq)
+        C(PRINT, print) C(INPUT, input) C(TIME, time)
+        C(DO, do)       C(IF, if)       C(WHILE, while)
+        C(INT, int)     C(FLOAT, float) C(TUPLE, tuple)
+        C(ADD, add)     C(SUB, sub)     C(MUL, mul)     C(DIV, div)
+        C(LT, lt)       C(LTE, lte)     C(GT, gt)       C(GTE, gte)
+        C(AND, and)     C(OR, or)       C(NOT, not)
+        C(EQ, eq)       C(NEQ, neq)
         default:{
             VL_Core_push_error(self, VL_Expr_get(expr, 0), 
                 "Symbol [" VLT_RED VLT_BOLD
             );
             VL_Symbol_print(symbol);
-            printf(VLT_RESET "] Not implemented!\n");
+            printf(VLT_RESET "] not implemented!\n");
             break;
         }
     }       
@@ -143,11 +259,11 @@ void VL_Core_eval_expr(VL_Core* self, const VL_Expr* expr){
             }
             break;
         default:
-            VL_Core_push_error(self, VL_Expr_get(expr, 1), 
+            VL_Core_push_error(self, VL_Expr_get(expr, 0), 
                 VLT_RED VLT_BOLD
             );
             VL_Type_print(head->type);
-            printf(VLT_RESET " Cannot be used as a function\n");
+            printf(VLT_RESET " cannot be used as a function\n");
             break;
     }
 }
@@ -174,7 +290,7 @@ void VL_Core_exec_file(VL_Core* self, const VL_Str* file_path){
         
         if(VL_Module_parse(main, file_path)){
             printf("--- Abstract Syntax Tree ---\n");
-            VL_Object_print(main->ast_tree);
+            VL_Object_repr(main->ast_tree);
         
             printf("\n--- Executed file ---\n");
             VL_Core_eval_obj(self, main->ast_tree);

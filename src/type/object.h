@@ -11,18 +11,22 @@ VL_Object* VL_Object_new(const VL_Type type);
 
 void VL_Object_copy(VL_Object* self, const VL_Object* src);
 VL_Object* VL_Object_clone(const VL_Object* self);
-VL_Object* VL_Object_move(VL_Object* self);
+void VL_Object_move(VL_Object* self, VL_Object* dest);
+VL_Object* VL_Object_move_ref(VL_Object* self);
 
-VL_Object* VL_Object_from_bool(const VL_Bool val);
-VL_Object* VL_Object_from_int(const VL_Int val);
-VL_Object* VL_Object_from_float(const VL_Float val);
-VL_Object* VL_Object_from_symbol(const VL_Symbol val);
-VL_Object* VL_Object_from_cstr(const char* val);
+#define DEC(NAME, ARG)                          \
+VL_Object* VL_Object_wrap_##NAME(ARG);          \
+void VL_Object_set_##NAME(VL_Object* self, ARG);
 
-VL_Object* VL_Object_wrap_str(VL_Str* val);
-VL_Object* VL_Object_wrap_tuple(VL_Tuple* val);
-VL_Object* VL_Object_wrap_expr(VL_Expr* val);
-VL_Object* VL_Object_wrap_data(VL_ObjectData* data, VL_Type type);
+DEC(bool, const VL_Bool val)
+DEC(int, const VL_Int val)
+DEC(float, const VL_Float val)
+DEC(symbol, const VL_Symbol val)
+DEC(cstr, const char* val)
+
+DEC(str, VL_Str* val)
+DEC(tuple, VL_Tuple* val)
+DEC(expr, VL_Expr* val)
 
 VL_Object* VL_Object_make_ref(VL_Object* self);
 VL_Object* VL_Object_strong_share(VL_ARC_Object* self);
@@ -32,6 +36,7 @@ void VL_Object_clear(VL_Object* self);
 void VL_Object_delete(VL_Object* self);
 
 void VL_Object_print(const VL_Object* self);
+void VL_Object_repr(const VL_Object* self);
 
 void VL_print(VL_Object* self);
 void VL_println(VL_Object* self);

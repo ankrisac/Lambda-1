@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 #include <string.h>
-
+#include <time.h>
 
 #define VLT_BOLD  "\x1B[1m"
 

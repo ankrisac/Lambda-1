@@ -6,10 +6,10 @@ X(ADD)      X(SUB)      X(MUL)      X(DIV)              \
 X(AND)      X(OR)       X(NOT)                          \
 X(LTE)      X(GTE)      X(LT)       X(GT)               \
 X(EQ)       X(NEQ)                                      \
-X(FLOAT)    X(INT)                                      \
+X(FLOAT)    X(INT)      X(TUPLE)                        \
 X(SET)                                                  \
-X(PRINT)                                                \
-X(DO)       X(INFIX)
+X(PRINT)    X(INPUT)    X(TIME)                         \
+X(DO)       X(IF)       X(WHILE)    X(INFIX)
 
 #define NAME(X) VL_SYM_ ## X ,
 

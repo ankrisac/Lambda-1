@@ -41,7 +41,7 @@ VL_ExprAtom* VL_ExprAtom_wrap(VL_ExprAtom* self){
 }
 
 void VL_ExprAtom_print(const VL_ExprAtom* self){
-    VL_Object_print(self->val);
+    VL_Object_repr(self->val);
 }
 
 
@@ -141,10 +141,13 @@ void VL_Expr_print(const VL_Expr* self){
         VL_ExprAtom_print(&self->data[0]);
     
         for(size_t i = 1; i < self->len; i++){
-            printf(", ");
+            printf(" ");
             VL_ExprAtom_print(&self->data[i]);    
         }
     }
     printf(")");
     #undef P
+}
+void VL_Expr_repr(const VL_Expr* self){
+    VL_Expr_print(self);
 }

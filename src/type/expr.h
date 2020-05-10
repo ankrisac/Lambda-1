@@ -34,3 +34,4 @@ void VL_Expr_set(VL_Expr* self, size_t i, VL_ExprAtom* value);
 void VL_Expr_rset(VL_Expr* self, size_t i, VL_ExprAtom* value);
 
 void VL_Expr_print(const VL_Expr* self);
+void VL_Expr_repr(const VL_Expr* self);

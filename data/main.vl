@@ -1,4 +1,7 @@
 do {
-    print (1 + 2 != 5);
-    print (3 + 4);
+    while True (
+        do {
+            print "time : " [time] "\n";   
+        }
+    );
 };

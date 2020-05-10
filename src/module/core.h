@@ -77,6 +77,5 @@ void VL_Core_exec_file(VL_Core* self, const VL_Str* file_path);
 #include "module.h"
 #include "parser.h"
 #include "source.h"
-#include "infix.h"
 #include "eval_math.h"
 #include "symtable.h"

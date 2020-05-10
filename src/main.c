@@ -5,8 +5,8 @@
 #include <string.h>
 
 #include "module/module.h"
-
 #include <time.h>
+
 
 void VIPER(const char* path_name){
     VL_Core* viper = VL_Core_new();
@@ -29,7 +29,7 @@ void VIPER(const char* path_name){
 }
 
 int main(){
-    PERF(1, VIPER("data/main.vl");, "Complete process: ")
+    VIPER("data/main.vl");
 
     return 0;
 }

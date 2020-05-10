@@ -7,6 +7,7 @@ void VL_Str_clear(VL_Str* self);
 void VL_Str_delete(VL_Str* self);
 
 void VL_Str_print(const VL_Str* self);
+void VL_Str_repr(const VL_Str* self);
 void VL_Str_print_internal(const VL_Str* self);
 
 void VL_Str_copy(VL_Str* self, const VL_Str* src);
@@ -22,6 +23,7 @@ VL_Str* VL_Str_from_int(VL_Int val);
 VL_Str* VL_Str_from_cstr(const char* str);
 VL_Str* VL_Str_from_file_cstr(const char* file_path);
 VL_Str* VL_Str_from_file(const VL_Str* file_path);
+VL_Str* VL_Str_from_cin();
 
 char* VL_Str_to_cstr(const VL_Str* self);
 

@@ -113,30 +113,37 @@ VL_Object* VL_Object_clone(const VL_Object* self){
     VL_Object_copy(out, self);
     return out;
 }
-VL_Object* VL_Object_move(VL_Object* self){
-    VL_Object* out = malloc(sizeof* out);
-    out->data = self->data;
-    out->type = self->type;
+void VL_Object_move(VL_Object* self, VL_Object* dest){
+    dest->data = self->data;
+    dest->type = self->type;
     self->type = VL_TYPE_NONE;
+}
+VL_Object* VL_Object_move_ref(VL_Object* self){
+    VL_Object* out = malloc(sizeof* out);
+    VL_Object_move(self, out);
     return out;
 }
 
-#define VL_DEF(NAME, TYPE, TYPE_ENUM, EXPR)     \
-VL_Object* NAME (TYPE val){                     \
-    VL_Object* out = VL_Object_new(TYPE_ENUM);  \
-    EXPR                                        \
-    return out;                                 \
-}
-VL_DEF(VL_Object_from_bool, const VL_Bool, VL_TYPE_BOOL, out->data.v_bool = val; )
-VL_DEF(VL_Object_from_int, const VL_Int, VL_TYPE_INT, out->data.v_int = val; )
-VL_DEF(VL_Object_from_float, const VL_Float, VL_TYPE_FLOAT, out->data.v_float = val; )
-VL_DEF(VL_Object_from_symbol, const VL_Symbol, VL_TYPE_SYMBOL, out->data.symbol = val; )
 
-VL_DEF(VL_Object_from_cstr, const char*, VL_TYPE_STRING, out->data.str = VL_Str_from_cstr(val); )
-VL_DEF(VL_Object_wrap_str, VL_Str*, VL_TYPE_STRING, out->data.str = val; )
-VL_DEF(VL_Object_wrap_tuple, VL_Tuple*, VL_TYPE_TUPLE, out->data.tuple = val; )
-VL_DEF(VL_Object_wrap_expr, VL_Expr*, VL_TYPE_EXPR, out->data.expr = val; )
-#undef VL_FROM_DEF
+#define DEF(NAME, TYPE, TYPE_ENUM, EXPR)                    \
+VL_Object* VL_Object_wrap_##NAME (TYPE val){                \
+    VL_Object* self = VL_Object_new(VL_TYPE_##TYPE_ENUM);   \
+    EXPR return self;                                       \
+}                                                           \
+void VL_Object_set_##NAME (VL_Object* self, TYPE val){      \
+    self->type = VL_TYPE_##TYPE_ENUM; EXPR                  \
+}
+
+DEF(bool, const VL_Bool, BOOL, self->data.v_bool = val; )
+DEF(int, const VL_Int, INT, self->data.v_int = val; )
+DEF(float, const VL_Float, FLOAT, self->data.v_float = val; )
+DEF(symbol, const VL_Symbol, SYMBOL, self->data.symbol = val; )
+
+DEF(cstr, const char*, STRING, self->data.str = VL_Str_from_cstr(val); )
+DEF(str, VL_Str*, STRING, self->data.str = val; )
+DEF(tuple, VL_Tuple*, TUPLE, self->data.tuple = val; )
+DEF(expr, VL_Expr*, EXPR, self->data.expr = val; )
+#undef DEF
 
 VL_Object* VL_Object_make_ref(VL_Object* self){    
     VL_Object* out = VL_Object_new(VL_TYPE_ARC_STRONG);    
@@ -171,6 +178,26 @@ void VL_Object_print(const VL_Object* self){
         C(STRING, VL_Str_print(self->data.str)) 
         C(TUPLE, VL_Tuple_print(self->data.tuple))
         C(EXPR, VL_Expr_print(self->data.expr))
+        
+        C(ARC_STRONG, printf("ARC Strong"); VL_ARC_Object_print(self->data.arc))
+        C(ARC_WEAK, printf("ARC Weak"); VL_ARC_Object_print_type(self->data.arc))
+    }
+    #undef C
+}
+void VL_Object_repr(const VL_Object* self){
+    #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
+    switch(self->type){
+        C(SYMBOL, VL_Symbol_print(self->data.symbol)) 
+        C(VARIABLE, printf("id:%zu", self->data.v_varid))
+        C(NONE, printf("None")) 
+        C(BOOL, printf((self->data.v_bool) ? "True" : "False"))
+        
+        C(INT, printf("%lli", self->data.v_int)) 
+        C(FLOAT, printf("%f", self->data.v_float))
+        
+        C(STRING, VL_Str_repr(self->data.str)) 
+        C(TUPLE, VL_Tuple_repr(self->data.tuple))
+        C(EXPR, VL_Expr_repr(self->data.expr))
         
         C(ARC_STRONG, printf("ARC Strong"); VL_ARC_Object_print(self->data.arc))
         C(ARC_WEAK, printf("ARC Weak"); VL_ARC_Object_print_type(self->data.arc))

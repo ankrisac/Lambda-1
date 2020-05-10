@@ -28,24 +28,24 @@ void VL_Module_delete(VL_Module* self){
 }
 
 VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_end, const char* highlight_color){
-    VL_Str* ln = VL_Str_from_cstr("Ln[");   
+    VL_Str* ln = VL_Str_from_cstr("Line[");
 
-    VL_Str_append_int(ln, (VL_Int)(s_begin.pos));
-    VL_Str_append_cstr(ln, "-");
+    if(s_begin.row == s_end.row){   
+        VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
+        VL_Str_append_cstr(ln, "]");
+    }
+    else{
+        VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
+        VL_Str_append_cstr(ln, ":");
+        VL_Str_append_int(ln, (VL_Int)(s_begin.col + 1));
+        VL_Str_append_cstr(ln, "] -> Ln[");
+        VL_Str_append_int(ln, (VL_Int)(s_end.row + 1));
+        VL_Str_append_cstr(ln, ":");
+        VL_Str_append_int(ln, (VL_Int)(s_end.col + 1));
+        VL_Str_append_cstr(ln, "]");
+    } 
     
-    VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
-    VL_Str_append_cstr(ln, ":");
-    VL_Str_append_int(ln, (VL_Int)(s_begin.col + 1));
-    VL_Str_append_cstr(ln, "] -> Ln[");
-
-    VL_Str_append_int(ln, (VL_Int)(s_end.pos));
-    VL_Str_append_cstr(ln, "-");
-
-    VL_Str_append_int(ln, (VL_Int)(s_end.row + 1));
-    VL_Str_append_cstr(ln, ":");
-    VL_Str_append_int(ln, (VL_Int)(s_end.col + 1));
-    VL_Str_append_cstr(ln, "] ");
-
+    VL_Str_append_cstr(ln, " of ");
     VL_Str_append(ln, self->file_path);
     VL_Str_append_cstr(ln, "\n| ");
 
