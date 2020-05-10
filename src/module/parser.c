@@ -261,6 +261,7 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
     switch(VL_Module_peek(self, state)){
         TOKEN_OPERATOR(C) {
             if(VL_Module_parse_Operator(self, state)){
+                VL_Module_parse_Space(self, state);
                 if(!VL_Module_match_chr(self, state, ')')){
                     VL_Module_push_err_str(self, begin, state,
                         "Expected closing" VLT_ERR("parenthesis ')'") 
@@ -274,6 +275,7 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
         }
         default:{
             if(VL_Module_parse_IExpr(self, state)){
+                VL_Module_parse_Space(self, state);
                 if(!VL_Module_match_chr(self, state, ')')){
                     VL_Module_push_err_str(self, begin, state,
                         "Expected closing" VLT_ERR("parenthesis ')'") 
