@@ -29,6 +29,7 @@ char* VL_Str_to_cstr(const VL_Str* self);
 
 void VL_Str_reverse(VL_Str* self);
 
-int VL_Str_cmp(const VL_Str* self, const VL_Str* other);
-int VL_Str_cmp_cstr(const VL_Str* self, const char* str);
+short VL_Str_cmp(const VL_Str* self, const VL_Str* other);
+short VL_Str_cmp_cstr(const VL_Str* self, const char* str);
 bool VL_Str_is_char(const VL_Str* self, const char value);
+size_t VL_Str_hash(const VL_Str* self);

@@ -168,7 +168,7 @@ void VL_Str_reverse(VL_Str* self){
         self->data[j] = temp;
     }
 }
-int VL_Str_cmp(const VL_Str* self, const VL_Str* other){
+short VL_Str_cmp(const VL_Str* self, const VL_Str* other){
     size_t len = (self->len > other->len) ? other->len : self->len;
 
     for(size_t i = 0; i < len; i++){
@@ -188,7 +188,7 @@ int VL_Str_cmp(const VL_Str* self, const VL_Str* other){
     }
     return 1;
 }
-int VL_Str_cmp_cstr(const VL_Str* self, const char* str){
+short VL_Str_cmp_cstr(const VL_Str* self, const char* str){
     const char* j = str;
     for(size_t i = 0; i < self->len; i++, j++){
         if(*j == '\0'){
@@ -213,4 +213,14 @@ bool VL_Str_is_char(const VL_Str* self, const char value){
         return (self->data[0] == value);
     }
     return false;
+}
+
+size_t VL_Str_hash(const VL_Str* str){
+    //DJB2 hash function
+
+    size_t hash = 5381;
+    for(size_t i = 0; i < str->len; i++){
+        hash = ((hash << 5) + hash) + str->data[i];
+    }
+    return hash;
 }

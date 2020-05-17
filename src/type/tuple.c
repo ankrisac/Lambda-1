@@ -78,12 +78,32 @@ VL_Object* VL_Tuple_pop(VL_Tuple* self){
     }
     return VL_Object_new(VL_TYPE_NONE);
 }
+void VL_Tuple_drop(VL_Tuple* self){
+    if(self->len > 0){
+        self->len--;
+        VL_Object_clear(&self->data[self->len]);
+    }
+}
+void VL_Tuple_dropn(VL_Tuple* self, size_t n){
+    if(self->len >= n){
+        for(size_t i = self->len - n; i < self->len; i++){
+            VL_Object_clear(&self->data[i]);
+        }
+        self->len -= n;
+    }
+}
 
 
 const VL_Object* VL_Tuple_get(const VL_Tuple* self, size_t i){
     return &self->data[i];
 }
 const VL_Object* VL_Tuple_rget(const VL_Tuple* self, size_t i){
+    return &self->data[self->len - i - 1];
+}
+VL_Object* VL_Tuple_mget(VL_Tuple* self, size_t i){
+    return &self->data[i];
+}
+VL_Object* VL_Tuple_mrget(VL_Tuple* self, size_t i){
     return &self->data[self->len - i - 1];
 }
 void VL_Tuple_set(VL_Tuple* self, size_t i, VL_Object* value){

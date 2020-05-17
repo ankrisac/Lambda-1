@@ -5,7 +5,7 @@
 #define TOKEN_BRACKET(X) X('(') X(')') X('[') X(']') X('{') X('}')
 #define TOKEN_OPERATOR(X)           \
 X('=') X('<') X('>')                \
-X('@') X('$') X('%') X('#') X('?')  \
+X('%') X('#') X('?')                \
 X('!') X('|') X('&') X('^') X('~')  \
 X('+') X('-') X('*') X('/')         \
 
@@ -46,6 +46,7 @@ bool VL_Module_parse_token_symbol_operator(char val){
         #undef C
     }
 }
+
 bool VL_Module_parse_Number(VL_Module* self, VL_ParseState* state){
     VL_ParseState begin = *state;
     
@@ -151,12 +152,13 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
     state->val = NULL;
     #define S(STR, SYM)                                     \
     if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-        state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); \
+        state->val = VL_Object_wrap_keyword(VL_SYM_ ## SYM);\
     }
     switch(string->len){
         case 2:{
             S("do", DO)
             else S("if", IF)
+            else S("fn", FN)
             break;
         }
         case 3:{
@@ -172,6 +174,8 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
                 state->val = VL_Object_new(VL_TYPE_NONE);
             }
             else S("time", TIME)
+            else S("def!", SET)
+
             break;
         }
         case 5:{
@@ -181,6 +185,8 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
             else S("while", WHILE)
             else S("input", INPUT)
             else S("tuple", TUPLE)
+            else S("quote", QUOTE)
+            
             else if(VL_Str_cmp_cstr(string, "False") == 0){
                 state->val = VL_Object_wrap_bool(false);
             }
@@ -190,10 +196,14 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
             break;
     }
     #undef S
+    
     if(state->val == NULL){
-        state->val = VL_Object_new(VL_TYPE_NONE);
+        state->val = VL_Object_wrap_symbol(VL_Symbol_new(string));
     }
-    VL_Str_delete(string);
+    else{
+        VL_Str_delete(string);
+    }
+
     return true;
 }
 bool VL_Module_parse_Operator(VL_Module* self, VL_ParseState* state){
@@ -212,18 +222,20 @@ bool VL_Module_parse_Operator(VL_Module* self, VL_ParseState* state){
 
         state->val = NULL;
         
-        #define C(CHR, SYM)                                                     \
-            case CHR: { state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); break; }
-                
+        #define C(CHR, SYM)                                         \
+            case CHR:                                               \
+                state->val = VL_Object_wrap_keyword(VL_SYM_##SYM);  \
+                break; 
+            
         #define S(STR, SYM)                                     \
         if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-            state->val = VL_Object_wrap_symbol(VL_SYM_ ## SYM); \
+            state->val = VL_Object_wrap_keyword(VL_SYM_ ## SYM); \
         }
         switch(string->len){
             case 1:
                 switch(string->data[0]){
                     C('+', ADD) C('-', SUB) C('*', MUL) C('/', DIV)
-                    C('>', GT) C('<', LT) C('=', SET)
+                    C('>', GT) C('<', LT)
                     default:
                         break;
                 }
@@ -298,7 +310,6 @@ bool VL_Module_parse_FAtom(VL_Module* self, VL_ParseState* state){
     switch(VL_Module_peek(self, state)){
         case '"':
             return VL_Module_parse_String(self, state);
-        
         case '0':
         case '1':
         case '2':
@@ -310,7 +321,6 @@ bool VL_Module_parse_FAtom(VL_Module* self, VL_ParseState* state){
         case '8':
         case '9':
             return VL_Module_parse_Number(self, state);
-        
         case '(':
             return VL_Module_parse_AExpr(self, &begin, state);
         case '[':
@@ -322,7 +332,6 @@ bool VL_Module_parse_FAtom(VL_Module* self, VL_ParseState* state){
         case ';':
         case ',':
             return false;
-
         TOKEN_OPERATOR(C)
             return false;
         TOKEN_SPACE(C)
@@ -481,7 +490,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
     
     VL_Expr* expr = VL_Expr_new(2);
 
-    state->val = VL_Object_wrap_symbol(VL_SYM_INFIX);
+    state->val = VL_Object_wrap_keyword(VL_SYM_INFIX);
     VL_Expr_append_Object(expr, state->val, begin.p, state->p, self->id);
     
     size_t p_err = self->error_stack->len;    

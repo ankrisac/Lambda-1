@@ -1,7 +1,3 @@
 do {
-    do {
-        print "time : " [time] " ";
-        print (1 + 2 * 3);
-        print "\n";
-    };
+    (fn [x] 2) 2; 
 };
