@@ -1,6 +1,6 @@
 #include "parser.h"
 
-VL_SymMap* builtin_keywords;
+VL_SymMap* builtin_keywords = NULL;
 
 void add_value(VL_SymMap* self, const char* name, VL_Object* val){
     VL_Str* temp_str = VL_Str_from_cstr(name);
@@ -33,6 +33,7 @@ void VL_Parser_init(){
 }
 void VL_Parser_quit(){
     VL_SymMap_delete(builtin_keywords);
+    builtin_keywords = NULL;
 }
 
 #define TOKEN_SPACE(X)  \

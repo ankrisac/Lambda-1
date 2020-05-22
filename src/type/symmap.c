@@ -66,6 +66,9 @@ void resize(VL_SymMap* self, size_t len){
             new_map.data[j] = self->data[i];
         }
     }
+    free(self->keys);
+    free(self->data);
+    free(self->hash);
     *self = new_map;
 }
 void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, VL_Object* value){
