@@ -9,20 +9,56 @@ VL_Object* VL_Object_new(const VL_Type type){
     VL_Object_init(self, type);
     return self;
 }
-void VL_Object_clear(VL_Object* self){
+
+void VL_Object_clear(VL_Object* self){    
+    #define R_DELETE(TAG)                       \
+        if(self->data.arc->weak_ref_count == 0){\
+            free(self->data.arc);               \
+        }
+
+    #define RS_CLEAR(DESTRUCT, TAG)                 \
+        switch(self->data.arc->ref_count){          \
+            case 1:                                 \
+                DESTRUCT(&self->data.arc->TAG);     \
+                R_DELETE(self->data)                \
+                break;                              \
+            case 0:                                 \
+                perror("ARC: Invalid ref count\n"); \
+                break;                              \
+            default:                                \
+                self->data.arc->ref_count--;        \
+                break;                              \
+        }
+    
+    #define RW_CLEAR(DESTRUCT, TAG)                 \
+        if(self->data.arc->weak_ref_count > 0){     \
+            self->data.arc->weak_ref_count--;       \
+            if(self->data.arc->weak_ref_count == 0){\
+                R_DELETE(TAG)                       \
+            }                                       \
+        }
+    
     #define C(ENUM, EXPR) case VL_TYPE_##ENUM: EXPR; break;
+    
+    #define RC(TYPE_ENUM, TYPE_TAG, DESTRUCT)           \
+        C(RS_##TYPE_ENUM, RS_CLEAR(DESTRUCT, TYPE_TAG)) \
+        C(RW_##TYPE_ENUM, RW_CLEAR(DESTRUCT, TYPE_TAG))
+
+    #define ND(TYPE_ENUM) C(TYPE_ENUM, )
+
     switch(self->type){
-        C(KEYWORD, )    C(NONE, ) 
-        C(BOOL, )   C(INT, )    C(FLOAT, )
-        
+        ND(KEYWORD)
+        ND(NONE)    ND(BOOL)
+        ND(INT)     ND(FLOAT)
+
         C(SYMBOL, VL_Symbol_delete(self->data.symbol))
         C(STRING, VL_Str_delete(self->data.str))
-        C(TUPLE, VL_Tuple_delete(self->data.tuple))
-        C(EXPR, VL_Expr_delete(self->data.expr))
-        C(FUNCTION, VL_Function_delete(self->data.fn))
+        
+        RC(STRING, str, VL_Str_clear)
+        RC(FUNCTION, fn, VL_Function_clear)
 
-        C(ARC_STRONG, VL_ARC_Object_strong_clear(self->data.arc))
-        C(ARC_WEAK, VL_ARC_Object_weak_clear(self->data.arc))
+        C(TUPLE, VL_Tuple_delete(self->data.tuple))
+        C(EXPR, VL_Expr_delete(self->data.expr))        
     }
     #undef C
 
@@ -36,7 +72,21 @@ void VL_Object_delete(VL_Object* self){
 void VL_Object_copy(VL_Object* self, const VL_Object* src){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
     #define D(ENUM, TAG) case VL_TYPE_ ## ENUM: self->data.TAG = src->data.TAG; break;
-    
+
+    #define R_CASE(TYPE_ENUM, EXPR)         \
+        case TYPE_ENUM: {                   \
+            self->data.arc = src->data.arc; \
+            self->type = TYPE_ENUM;         \
+            EXPR                            \
+            break;                          \
+        }
+        
+    #define R(TYPE)                             \
+        R_CASE(VL_TYPE_GET_ENUM(RS_##TYPE),     \
+            self->data.arc->ref_count++;)       \
+        R_CASE(VL_TYPE_GET_ENUM(RW_##TYPE),     \
+            self->data.arc->weak_ref_count++;)
+
     switch(src->type){
         D(KEYWORD, keyword) C(NONE, )
         D(BOOL, v_bool) D(INT, v_int)   D(FLOAT, v_float)
@@ -45,14 +95,15 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
         C(STRING, self->data.str = VL_Str_clone(src->data.str))
         C(TUPLE, self->data.tuple = VL_Tuple_clone(src->data.tuple))
         C(EXPR, self->data.expr = VL_Expr_clone(src->data.expr))
-        C(FUNCTION, self->data.fn = VL_Function_clone(src->data.fn))
-
-        C(ARC_STRONG, self->data.arc = VL_ARC_Object_strong_copy(src->data.arc))
-        C(ARC_WEAK, self->data.arc = VL_ARC_Object_weak_copy(src->data.arc))
+        
+        R(FUNCTION)
+        R(STRING)
     }
 
     #undef C
     #undef D
+    #undef R
+    #undef R_CASE
 
     self->type = src->type;
 }
@@ -91,30 +142,32 @@ DEF(cstr, const char*, STRING, self->data.str = VL_Str_from_cstr(val); )
 DEF(str, VL_Str*, STRING, self->data.str = val; )
 DEF(tuple, VL_Tuple*, TUPLE, self->data.tuple = val; )
 DEF(expr, VL_Expr*, EXPR, self->data.expr = val; )
-DEF(fn, VL_Function*, FUNCTION, self->data.fn = val; )
 #undef DEF
 
-VL_Object* VL_Object_make_ref(VL_Object* self){    
-    VL_Object* out = VL_Object_new(VL_TYPE_ARC_STRONG);    
-    out->data.arc = VL_ARC_Object_new(self);
-    self->type = VL_TYPE_NONE;
-    return out;
-}
-VL_Object* VL_Object_strong_share(VL_ARC_Object* self){    
-    VL_Object* out = VL_Object_new(VL_TYPE_ARC_STRONG);    
-    out->data.arc = self;
-    out->data.arc->ref_count++;
-    return out;
-}
-VL_Object* VL_Object_weak_share(VL_ARC_Object* self){
-    VL_Object* out = VL_Object_new(VL_TYPE_ARC_WEAK);    
-    out->data.arc = self;
-    out->data.arc->weak_ref_count++;
-    return out;
+VL_ARCData* VL_ARCData_malloc(){
+    VL_ARCData* self = malloc(sizeof* self);
+    self->ref_count = 1;
+    self->weak_ref_count = 0;
+    return self;
 }
 
 void VL_Object_print(const VL_Object* self){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
+    
+    #define RS(TYPE_ENUM, TYPE_TAG, PRINT_FN)               \
+        C(TYPE_ENUM, PRINT_FN(&self->data.arc->TYPE_TAG); )
+    
+    #define RW(TYPE_ENUM, TYPE_TAG, PRINT_FN)       \
+        C(TYPE_ENUM,                                \
+            if(self->data.arc->ref_count > 0){      \
+                PRINT_FN(&self->data.arc->TYPE_TAG);\
+            }                                       \
+        )
+
+    #define R(TYPE_ENUM, TYPE_TAG, PRINT_FN)    \
+        RS(RS_##TYPE_ENUM, TYPE_TAG, PRINT_FN)  \
+        RW(RW_##TYPE_ENUM, TYPE_TAG, PRINT_FN)
+    
     switch(self->type){
         C(KEYWORD, VL_Keyword_print(self->data.keyword))
 
@@ -127,16 +180,34 @@ void VL_Object_print(const VL_Object* self){
         C(STRING, VL_Str_print(self->data.str)) 
         C(TUPLE, VL_Tuple_print(self->data.tuple))
         C(EXPR, VL_Expr_print(self->data.expr))
-        C(FUNCTION, VL_Function_print(self->data.fn))
 
         C(SYMBOL, VL_Symbol_print(self->data.symbol)) 
-        C(ARC_STRONG, printf("ARC Strong"); VL_ARC_Object_print(self->data.arc))
-        C(ARC_WEAK, printf("ARC Weak"); VL_ARC_Object_print_type(self->data.arc))
+
+        R(STRING, str, VL_Str_print)
+        R(FUNCTION, fn, VL_Function_print)
     }
+
     #undef C
+    #undef RW
+    #undef RS
+    #undef R
 }
 void VL_Object_repr(const VL_Object* self){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
+    
+    #define RS(TYPE_ENUM, TYPE_TAG, PRINT_FN)       \
+        C(TYPE_ENUM,                                \
+            PRINT_FN(&self->data.arc->TYPE_TAG);)
+    
+    #define RW(TYPE_ENUM, TYPE_TAG, PRINT_FN)           \
+        C(TYPE_ENUM,                                    \
+            if(self->data.arc->ref_count > 0){          \
+                PRINT_FN(&self->data.arc->TYPE_TAG);})
+
+    #define R(TYPE_ENUM, TYPE_TAG, PRINT_FN)    \
+        RS(RS_##TYPE_ENUM, TYPE_TAG, PRINT_FN)  \
+        RW(RW_##TYPE_ENUM, TYPE_TAG, PRINT_FN)
+    
     switch(self->type){
         C(KEYWORD, VL_Keyword_print(self->data.keyword)) 
         C(SYMBOL, VL_Symbol_print(self->data.symbol))
@@ -150,12 +221,15 @@ void VL_Object_repr(const VL_Object* self){
         C(STRING, VL_Str_repr(self->data.str)) 
         C(TUPLE, VL_Tuple_repr(self->data.tuple))
         C(EXPR, VL_Expr_repr(self->data.expr))
-        C(FUNCTION, VL_Function_repr(self->data.fn))
-
-        C(ARC_STRONG, printf("ARC Strong"); VL_ARC_Object_print(self->data.arc))
-        C(ARC_WEAK, printf("ARC Weak"); VL_ARC_Object_print_type(self->data.arc))
+        
+        R(STRING, str, VL_Str_print)
+        R(FUNCTION, fn, VL_Function_repr)
     }
+
     #undef C
+    #undef RW
+    #undef RS
+    #undef R
 }
 
 void VL_print(VL_Object* self){

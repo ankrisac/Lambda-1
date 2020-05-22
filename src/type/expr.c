@@ -128,6 +128,13 @@ const VL_ExprAtom* VL_Expr_get(const VL_Expr* self, size_t i){
 const VL_ExprAtom* VL_Expr_rget(const VL_Expr* self, size_t i){
     return &self->data[self->len - i - 1];
 }
+VL_ExprAtom* VL_Expr_mget(const VL_Expr* self, size_t i){
+    return &self->data[i];
+}
+VL_ExprAtom* VL_Expr_mrget(const VL_Expr* self, size_t i){
+    return &self->data[self->len - i - 1];
+}
+
 void VL_Expr_set(VL_Expr* self, size_t i, VL_ExprAtom* value){
     self->data[i] = *value;
 }

@@ -3,6 +3,9 @@
 
 #define VLT_ERR(SRC) VLT_BOLD VLT_RED SRC VLT_RESET
 
+void VL_Parser_init();
+void VL_Parser_quit();
+
 char VL_Module_parse_match_escape_seq(char in);
 
 bool VL_Module_parse_token_symbol_label(char val);

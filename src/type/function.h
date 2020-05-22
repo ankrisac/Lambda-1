@@ -8,5 +8,7 @@ void VL_Function_delete(VL_Function* self);
 void VL_Function_copy(VL_Function* self, const VL_Function* src);
 VL_Function* VL_Function_clone(const VL_Function* self);
 
+const VL_Symbol* VL_Function_getArg(const VL_Function* self, const size_t i);
+
 void VL_Function_print(const VL_Function* self);
 void VL_Function_repr(const VL_Function* self);

@@ -61,86 +61,147 @@ void VL_Core_stack_debug(VL_Core* self){
     printf("\n");
 }
 
-#define CASE(ENUM, EXPR) case ENUM: { EXPR break; }
-#define CTYPE(ENUM, EXPR) CASE(VL_TYPE_##ENUM, EXPR)
-#define CKEYWORD(ENUM, EXPR) CASE(VL_SYM_##ENUM, EXPR)
+#define CASE(TYPE_ENUM, EXPR) case TYPE_ENUM: { EXPR break; }
+#define CTYPE(TYPE_ENUM, EXPR) CASE(VL_TYPE_##TYPE_ENUM, EXPR)
+#define CKEYWORD(KEYWORD, EXPR) CASE(VL_KEYWORD_##KEYWORD, EXPR)
 #define CDEFAULT(EXPR) default: { EXPR break; }
 
-#define DEF_FUNC(NAME, EXPR)\
-void VL_Core_fn_##NAME(VL_Core* self, VL_Expr* expr){ EXPR }
+#define DEF_FUNC(NAME, EXPR)                                    \
+    void VL_Core_fn_##NAME(VL_Core* self, VL_Expr* expr){ EXPR }
 
-#define BINARY_LOAD_ARGS                            \
-    VL_Object* lhs = VL_Core_stack_rget(self, 1);   \
-    VL_Object* rhs = VL_Core_stack_rget(self, 0);
+#define FUNC_TYPECASE(TYPE_ENUM, EXPR)      \
+    CASE(VL_TYPE_##TYPE_ENUM, EXPR return;)
 
-#define BINARY_ERR_MSG(KEYWORD)                 \
+#define FUNC_ERR(N, EXPR)                       \
     VL_Core_error(self, VL_Expr_get(expr, 0));  \
-    VL_Keyword_perror(KEYWORD);                 \
-    printf(" not supported between ");          \
-    VL_Object_perror(lhs);                      \
-    printf(" and ");                            \
-    VL_Object_perror(rhs);
+    EXPR                                        \
+    VL_Core_stack_dropn(self, N);               \
+    VL_Core_stack_push_none(self);
+
+#define FUNC_KEYWORD_ERR(N, KEYWORD, EXPR)          \
+    FUNC_ERR(N, VL_Keyword_perror(KEYWORD); EXPR)
     
-#define BINARY_FUNC(NAME, KEYWORD, CASES)   \
-    DEF_FUNC(NAME,                          \
-        BINARY_LOAD_ARGS                    \
-        if(lhs->type == rhs->type){         \
-            switch(lhs->type){              \
-                CASES CDEFAULT()}}          \
-        BINARY_ERR_MSG(KEYWORD)             \
-        VL_Core_stack_dropn(self, 2);       \
-        VL_Core_stack_push_none(self);)
+#define UNARY_FUNC(NAME, KEYWORD, CASES)                \
+    DEF_FUNC(NAME,                                      \
+        VL_Object* val = VL_Core_stack_rget(self, 0);   \
+        switch(val->type){                              \
+            CASES CDEFAULT() }                          \
+        FUNC_KEYWORD_ERR(1, KEYWORD,                    \
+            printf(" not supported on ");               \
+            VL_Object_perror(val);))
 
-#define CASE_NUM(TYPE_ENUM, TYPE_TAG, OP)           \
-    CTYPE(TYPE_ENUM,                                \
-        lhs->data.TYPE_TAG OP rhs->data.TYPE_TAG;   \
-        rhs->type = VL_TYPE_NONE;                   \
-        self->stack->len--;                         \
-        return;)
+#define BINARY_FUNC(NAME, KEYWORD, CASES)               \
+    DEF_FUNC(NAME,                                      \
+        VL_Object* lhs = VL_Core_stack_rget(self, 1);   \
+        VL_Object* rhs = VL_Core_stack_rget(self, 0);   \
+        if(lhs->type == rhs->type){                     \
+            switch(lhs->type){                          \
+                CASES CDEFAULT()}}                      \
+        FUNC_KEYWORD_ERR(2, KEYWORD,                    \
+            printf(" not supported between ");          \
+            VL_Object_perror(lhs);                      \
+            printf(" and ");                            \
+            VL_Object_perror(rhs);                      \
+            printf("\n");))
 
-#define DEF(NAME, KEYWORD, OP)          \
-    BINARY_FUNC(NAME, VL_SYM_##KEYWORD, \
-        CASE_NUM(INT, v_int, OP)        \
-        CASE_NUM(FLOAT, v_float, OP))
+#define BINARY_CASE_NUM(TYPE_ENUM, TYPE_TAG, OP)   \
+    FUNC_TYPECASE(TYPE_ENUM,                       \
+        lhs->data.TYPE_TAG OP rhs->data.TYPE_TAG;  \
+        rhs->type = VL_TYPE_NONE;                  \
+        self->stack->len--;)
 
+DEF_FUNC(print,
+    VL_Object_print(VL_Core_stack_rget(self, 0));
+    VL_Core_stack_drop(self);
+    VL_Core_stack_push_none(self);)
+
+DEF_FUNC(input,
+    VL_Object obj;
+    VL_Str* str = VL_Str_from_cin();
+    VL_Object_set_str(&obj, str);
+    VL_Core_stack_push(self, &obj);)
+
+DEF_FUNC(time,
+    VL_Object obj;
+    VL_Object_set_float(&obj, (VL_Float)clock()/CLOCKS_PER_SEC);
+    VL_Core_stack_push(self, &obj);)
+
+UNARY_FUNC(float, VL_KEYWORD_FLOAT, 
+    FUNC_TYPECASE(INT, 
+        val->data.v_float = (VL_Float)val->data.v_int;
+        val->type = VL_TYPE_FLOAT;)
+    FUNC_TYPECASE(FLOAT, ))
+
+UNARY_FUNC(int, VL_KEYWORD_INT, 
+    FUNC_TYPECASE(FLOAT, 
+        val->data.v_int = (VL_Int)val->data.v_float;
+        val->type = VL_TYPE_INT;)
+    FUNC_TYPECASE(INT, ))
+
+UNARY_FUNC(string, VL_KEYWORD_STRING, 
+    FUNC_TYPECASE(STRING,
+        VL_Str* str = val->data.str; 
+        val->data.arc = VL_ARCData_malloc();
+        val->data.arc->str = *str;
+        free(str);
+        val->type = VL_TYPE_RS_STRING;))
+
+
+#define DEF(NAME, KEYWORD, OP)              \
+    BINARY_FUNC(NAME, VL_KEYWORD_##KEYWORD, \
+        BINARY_CASE_NUM(INT, v_int, OP)     \
+        BINARY_CASE_NUM(FLOAT, v_float, OP))
 DEF(add, ADD, +=)
 DEF(sub, SUB, -=)
 DEF(mul, MUL, *=)
+#undef DEF
 
-BINARY_FUNC(div, VL_SYM_DIV, 
-    CASE_NUM(FLOAT, v_float, /=)
+
+BINARY_FUNC(div, VL_KEYWORD_DIV, 
+    BINARY_CASE_NUM(FLOAT, v_float, /=)
     CTYPE(INT,
         if(rhs->data.v_int != 0){
             lhs->data.v_int /= rhs->data.v_int;
             rhs->type = VL_TYPE_NONE;
             self->stack->len--;
-            return;}))
+            return;
+        }
+        else{
+            FUNC_KEYWORD_ERR(2, VL_KEYWORD_DIV, 
+                printf(" ");
+                VL_Object_perror(lhs);
+                printf("/");
+                VL_Object_perror(rhs);
+                printf(" division by zero");)}))
 
-BINARY_FUNC(and, VL_SYM_AND, CASE_NUM(BOOL, v_bool, &=))
-BINARY_FUNC(or, VL_SYM_OR, CASE_NUM(BOOL, v_bool, |=))
-
+#define DEF(NAME, KEYWORD, OP)              \
+    BINARY_FUNC(NAME, VL_KEYWORD_##KEYWORD, \
+        BINARY_CASE_NUM(BOOL, v_bool, OP))
+DEF(and, AND, &=)
+DEF(or, OR, |=)
 #undef DEF
+
 #undef CASE_NUM
 
+
 #define CMP_NUM(TYPE_ENUM, TYPE_TAG, OP)                                \
-    CTYPE(TYPE_ENUM,                                                    \
+    FUNC_TYPECASE(TYPE_ENUM,                                            \
         lhs->data.v_bool = (lhs->data.TYPE_TAG OP rhs->data.TYPE_TAG);  \
         lhs->type = VL_TYPE_BOOL;                                       \
         rhs->type = VL_TYPE_NONE;                                       \
-        self->stack->len--;                                             \
-        return;)        
+        self->stack->len--;)        
+
 #define CMP_STR(OP)                                                 \
     CTYPE(STRING,                                                   \
         bool ok = (VL_Str_cmp(lhs->data.str, rhs->data.str) OP 0);  \
-        VL_Core_stack_dropn(self, 2);                              \
+        VL_Core_stack_dropn(self, 2);                               \
         VL_Core_stack_push_bool(self, ok);)
 
 #define DEF(NAME, KEYWORD, OP)          \
-    BINARY_FUNC(NAME, VL_SYM_##KEYWORD, \
-        CMP_NUM(INT, v_int, OP)        \
-        CMP_NUM(FLOAT, v_float, OP)    \
+    BINARY_FUNC(NAME, VL_KEYWORD_##KEYWORD, \
+        CMP_NUM(INT, v_int, OP)         \
+        CMP_NUM(FLOAT, v_float, OP)     \
         CMP_STR(OP))
-
 DEF(lt, LT, <)
 DEF(lte, LTE, <=)
 DEF(gt, GT, >)
@@ -148,13 +209,12 @@ DEF(gte, GTE, >=)
 #undef DEF
 
 #define DEF(NAME, KEYWORD, OP)          \
-    BINARY_FUNC(NAME, VL_SYM_##KEYWORD, \
-        CTYPE(NONE,                     \
+    BINARY_FUNC(NAME, VL_KEYWORD_##KEYWORD, \
+        FUNC_TYPECASE(NONE,            \
             lhs->data.v_bool = (0 OP 0);\
             lhs->type = VL_TYPE_BOOL;   \
             rhs->type = VL_TYPE_NONE;   \
-            self->stack->len--;         \
-            return;)                    \
+            self->stack->len--;)        \
         CMP_NUM(BOOL, v_bool, OP)       \
         CMP_NUM(INT, v_int, OP)         \
         CMP_NUM(FLOAT, v_float, OP)     \
@@ -172,7 +232,7 @@ void VL_Core_eval(VL_Core* self, VL_SymMap* env);
 bool VL_Core_eval_symbol(VL_Core* self, VL_SymMap* env, const VL_Symbol* sym){
     VL_Object* val = VL_SymMap_find(env, sym);
     if(val != NULL){
-        VL_Core_stack_push(self, val);
+        VL_Core_stack_push_copy(self, val);
         return true;
     }
     VL_Core_stack_push_none(self);
@@ -208,16 +268,13 @@ VL_Object* VL_Core_eval_do(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                     VL_Core_stack_drop(self);
                 }
                 return VL_Expr_rget(expr, 0)->val;
-            } 
-        )
+            })
         CTYPE(SYMBOL,
             if(!VL_Core_eval_symbol(self, env, obj->data.symbol)){
                 printf(VLT_ERR("Error:") " Cannot find ");
                 VL_Object_perror(obj);
                 printf("\n");
-                self->panic = true;
-            }
-        )
+            })
         CDEFAULT(VL_Core_stack_push_copy(self, obj);)
     }
     return NULL;
@@ -232,20 +289,14 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
     VL_Object* ast = obj;
     bool tail_call, special_form;
 
-    #define BASE_KEYWORD(ENUM, N, EXPR)                         \
-        CASE(VL_SYM_##ENUM,                                     \
+    #define EVAL_CASE(KEYWORD, N, FUNCTION)                     \
+        CKEYWORD(KEYWORD,                                       \
             size_t args = VL_Core_num_args(self, fn_ptr);       \
-            if(args == N){ EXPR }                               \
-            else{   VL_Core_error(self, VL_Expr_get(expr, 0));  \
-                    VL_Keyword_perror(VL_SYM_##ENUM);           \
-                    printf(" expected only " #N " argument(s)");\
-                    printf(" not %zu\n", args);                 \
-                    VL_Core_stack_dropn(self, args);            \
-                    VL_Core_stack_push_none(self);})
-
-    #define EVAL_CASE(KEYWORD, ARGS, FUNCTION)\
-        BASE_KEYWORD(KEYWORD, ARGS, VL_Core_fn_##FUNCTION(self, expr);)
-
+            if(args == N){ VL_Core_fn_##FUNCTION(self, expr); } \
+            else{   FUNC_KEYWORD_ERR(N, VL_KEYWORD_##KEYWORD,   \
+                    printf(" expected only "#N" argument(s)");  \
+                    printf(" not %zu\n", args);)})
+    
     do{
         tail_call = false;
         special_form = false;
@@ -276,20 +327,21 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                                         VL_SymMap_insert(env, label->data.symbol, &val);
                                     }
                                     else{
-                                        printf("set expected label!\n");
+                                        VL_Core_error(self, VL_Expr_get(expr, 1));
+                                        VL_Keyword_perror(VL_KEYWORD_SET);
+                                        printf(" requires first argument to be a symbol!\n");
+                                        VL_Core_stack_push_none(self);
                                     }
                                 }
                                 else{
                                     VL_Core_error(self, VL_Expr_get(expr, 0));
-                                    VL_Keyword_perror(VL_SYM_SET);
-                                    printf(" requires 2 arguements!\n");
+                                    VL_Keyword_perror(VL_KEYWORD_SET);
+                                    printf(" expected 2 arguments, not %zu!\n", expr->len - 1);
                                     VL_Core_stack_push_none(self);
-                                }
-                            )
+                                })
                             CKEYWORD(DO, 
                                 VL_Object* obj_expr = VL_Expr_get(expr, 1)->val;
-                                tail_call = ((ast = VL_Core_eval_do(self, env, obj_expr)) != NULL);
-                            )
+                                tail_call = ((ast = VL_Core_eval_do(self, env, obj_expr)) != NULL);)
                             CKEYWORD(IF,
                                 VL_Object cond;
                                 VL_Core_eval_obj(self, env, VL_Expr_get(expr, 1)->val);
@@ -303,15 +355,12 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                                                     ast = VL_Expr_get(expr, 2)->val;
                                                     tail_call = true;
                                                 }
-                                                VL_Core_stack_push_none(self);
-                                            )
+                                                VL_Core_stack_push_none(self);)
                                             CTYPE(NONE, VL_Core_stack_push_none(self);)
                                             CDEFAULT(
                                                 ast = VL_Expr_get(expr, 2)->val;
-                                                tail_call = false;
-                                            )
-                                        }
-                                    )
+                                                tail_call = false;)
+                                        })
                                     CASE(4,               
                                         switch(cond.type){
                                             CTYPE(BOOL, 
@@ -320,16 +369,45 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                                             )
                                             CTYPE(NONE, ast = VL_Expr_get(expr, 3)->val;)
                                             CDEFAULT(ast = VL_Expr_get(expr, 2)->val;)
-                                        }
-                                    )
+                                        })
                                     CDEFAULT(
                                         VL_Core_error(self, VL_Expr_get(expr, 0));
-                                        VL_Keyword_perror(VL_SYM_IF);
+                                        VL_Keyword_perror(VL_KEYWORD_IF);
                                         printf(" expected only 2-3 arguements!\n");
+                                        VL_Core_stack_push_none(self);)
+                                })
+                            CKEYWORD(WHILE,            
+                                switch(expr->len){
+                                    CASE(3,
+                                        bool loop = true;
+                                        VL_Object* expr_cond = VL_Expr_get(expr, 1)->val;
+                                        VL_Object* expr_body = VL_Expr_get(expr, 2)->val;
+                                        VL_Object cond;
+
+                                        do{
+                                            loop = false;
+
+                                            VL_Core_eval_obj(self, env, expr_cond);
+                                            VL_Tuple_pop_to(self->stack, &cond);
+                                
+                                            switch(cond.type){
+                                                CTYPE(BOOL, 
+                                                    if(cond.data.v_bool){
+                                                        VL_Core_eval_obj(self, env, expr_body);
+                                                        VL_Core_stack_drop(self);
+                                                        loop = true;   
+                                                    })
+                                                CDEFAULT()
+                                            }
+                                        } while(loop);
                                         VL_Core_stack_push_none(self);
-                                    )
-                                }
-                            )
+                                        tail_call = false;)
+                                    CDEFAULT(
+                                        VL_Core_error(self, VL_Expr_get(expr, 0));
+                                        VL_Keyword_perror(VL_KEYWORD_WHILE);
+                                        printf(" expected 2 arguements!\n");
+                                        VL_Core_stack_push_none(self);)
+                                })
                             CKEYWORD(FN,
                                 if(expr->len == 3){
                                     VL_Object* obj_arg = VL_Expr_get(expr, 1)->val;
@@ -340,26 +418,25 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                                             VL_Object_clone(VL_Expr_get(expr, 2)->val)); 
 
                                         VL_Object obj_fn;
-                                        VL_Object_set_fn(&obj_fn, fn);
-
-                                        VL_Object_perror(&obj_fn);
+                                        obj_fn.data.arc = VL_ARCData_malloc();
+                                        obj_fn.data.arc->fn = *fn;
+                                        obj_fn.type = VL_TYPE_RS_FUNCTION;
 
                                         VL_Core_stack_push(self, &obj_fn);
                                     }
                                     else{
                                         VL_Core_error(self, VL_Expr_get(expr, 1));
-                                        VL_Keyword_perror(VL_SYM_FN);
+                                        VL_Keyword_perror(VL_KEYWORD_FN);
                                         printf(" argument must be an expression!\n");
                                         VL_Core_stack_push_none(self);        
                                     }
                                 }
                                 else{
                                     VL_Core_error(self, VL_Expr_get(expr, 0));
-                                    VL_Keyword_perror(VL_SYM_FN);
-                                    printf(" requires 2 arguements!\n");
+                                    VL_Keyword_perror(VL_KEYWORD_FN);
+                                    printf(" requires 2 arguments!\n");
                                     VL_Core_stack_push_none(self);
-                                }    
-                            )
+                                })
                             CDEFAULT(special_form = false;)
                         }
                     }
@@ -373,40 +450,87 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj){
                                 switch(head->data.keyword){
                                     EVAL_CASE(ADD, 2, add)  EVAL_CASE(SUB, 2, sub)
                                     EVAL_CASE(MUL, 2, mul)  EVAL_CASE(DIV, 2, div)
+                                    
                                     EVAL_CASE(AND, 2, and)  EVAL_CASE(OR, 2, or)
                                     EVAL_CASE(EQ, 2, eq)    EVAL_CASE(NEQ, 2, neq)
+                                    
                                     EVAL_CASE(LT, 2, lt)    EVAL_CASE(LTE, 2, lte)
                                     EVAL_CASE(GT, 2, gt)    EVAL_CASE(GTE, 2, gte)
+                                    
+                                    EVAL_CASE(INT, 1, int)  EVAL_CASE(FLOAT, 1, float)
+                                    EVAL_CASE(STRING, 1, string)
 
-                                    BASE_KEYWORD(PRINT, 1,
-                                        VL_Object_print(VL_Core_stack_rget(self, 0));
-                                        VL_Core_stack_drop(self);
-                                        VL_Core_stack_push_none(self);
-                                    )
+                                    EVAL_CASE(PRINT, 1, print)
+
+                                    EVAL_CASE(INPUT, 0, input)
+                                    EVAL_CASE(TIME, 0, time)
+
                                     CDEFAULT(
-                                        VL_Keyword_perror(head->data.keyword);
-                                        printf(" not defined!\n");
-                                    )
+                                        size_t args = VL_Core_num_args(self, fn_ptr);
+                                        VL_Core_error(self, VL_Expr_get(expr, 0));
+                                        VL_Object_perror(VL_Core_stack_get(self, fn_ptr));
+                                        printf(" Viper broke and we got a non function!\n");
+                                        VL_Core_stack_dropn(self, args);
+                                        return;)
                                 }
 
                                 VL_Object* ret = VL_Core_stack_rget(self, 0);
                                 VL_Object* fn = VL_Core_stack_rget(self, 1);
                                 *fn = *ret;
-                                self->stack->len--;    
-                            )
-                            CTYPE(FUNCTION, printf("Functions not defined!\n");)
+                                self->stack->len--;)
+                            case VL_TYPE_RW_FUNCTION: {
+                                size_t args = VL_Core_num_args(self, fn_ptr);
+
+                                VL_Core_error(self, VL_Expr_get(expr, 0));
+                                VL_Object_perror(VL_Core_stack_get(self, fn_ptr + 1));
+                                printf(" weak function not implemented!\n");
+                                VL_Core_stack_dropn(self, args + 1);
+                                VL_Core_stack_push_none(self);        
+                                break;
+                            }
+                            case VL_TYPE_RS_FUNCTION: {
+                                VL_Function* fn = &head->data.arc->fn;
+
+                                if(fn->args->len + 1 == expr->len){ 
+                                    VL_SymMap* new_env = VL_SymMap_new(env, 2);
+
+                                    for(size_t i = 0; i + 1 < expr->len; i++){
+                                        VL_SymMap_insert(new_env, VL_Function_getArg(fn, i), VL_Core_stack_get(self, fn_ptr + i + 1));
+                                    }
+                                    
+                                    self->stack->len = self->stack->len + 1- expr->len;
+
+                                    VL_Core_eval_obj(self, new_env, fn->body);
+
+                                    VL_Object* ret = VL_Core_stack_rget(self, 0);
+                                    VL_Object* fn = VL_Core_stack_rget(self, 1);
+                                    VL_Object_clear(fn);
+                                    *fn = *ret;
+                                    self->stack->len--;
+                                    
+                                    VL_SymMap_delete(new_env);
+                                }
+                                else{
+                                    size_t args = VL_Core_num_args(self, fn_ptr);
+
+                                    VL_Core_error(self, VL_Expr_get(expr, 0));
+                                    VL_Object_perror(VL_Core_stack_get(self, fn_ptr + 1));
+                                    printf(" function expected %zu argument(s), not %zu!\n", fn->args->len, expr->len - 1);
+                                    VL_Core_stack_dropn(self, args + 1);
+                                    VL_Core_stack_push_none(self);        
+                                }
+                                break;
+                            }
                             CDEFAULT(
                                 size_t args = VL_Core_num_args(self, fn_ptr);
                                 VL_Core_error(self, VL_Expr_get(expr, 0));
-                                VL_Object_perror(VL_Expr_get(expr, 0)->val);
-                                printf(" cannot be called as a function!\n");
+                                VL_Object_perror(VL_Core_stack_get(self, fn_ptr));
+                                printf(" is not a function!\n");
                                 VL_Core_stack_dropn(self, args + 1);
-                                VL_Core_stack_push_none(self);
-                            )
+                                VL_Core_stack_push_none(self);)
                         }
                     }
-                }
-            )
+                })
             CDEFAULT(VL_Core_eval_ast(self, env, ast);)
         }
     } while (tail_call);
@@ -421,17 +545,11 @@ void VL_Core_exec_file(VL_Core* self, const VL_Str* file_path){
     if(main != NULL){
         main->id = 0;
         
+        VL_Parser_init();
         if(VL_Module_parse(main, file_path)){
-            printf("--- Abstract Syntax Tree ---\n");
-            VL_Object_repr(main->ast_tree);
-        
-            printf("\n--- Executed file ---\n");
-
             VL_Core_eval_obj(self, self->scope_global, main->ast_tree);
-
-
-            printf("\n--- Quitting ---\n");
         }
+        VL_Parser_quit();
     }
     else{
         printf(VLT_ERR("Error") ": opening file ");

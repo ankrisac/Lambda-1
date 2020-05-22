@@ -30,6 +30,8 @@ VL_ExprAtom* VL_Expr_pop(VL_Expr* self);
 
 const VL_ExprAtom* VL_Expr_get(const VL_Expr* self, size_t i);
 const VL_ExprAtom* VL_Expr_rget(const VL_Expr* self, size_t i);
+VL_ExprAtom* VL_Expr_mget(const VL_Expr* self, size_t i);
+VL_ExprAtom* VL_Expr_mrget(const VL_Expr* self, size_t i);
 void VL_Expr_set(VL_Expr* self, size_t i, VL_ExprAtom* value);
 void VL_Expr_rset(VL_Expr* self, size_t i, VL_ExprAtom* value);
 

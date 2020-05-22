@@ -3,15 +3,19 @@ SRC_DIR := src
 SRC := $(shell find $(SRC_DIR) -name "*.c")
 HDR := $(shell find $(SRC_DIR) -name "*.h")
 
-FLAGS := -O3 -Werror -pedantic
+FLAGS := -Wall -Werror -pedantic
 
 PHONY: lin
 lin: $(SRC) $(HDR)
-\tgcc -Wall $(FLAGS) $(SRC) -o .bin/main
+\tgcc $(FLAGS) $(SRC) -o .bin/main
+
+PNONY: lin_fast
+lin_fast: $(SRC) $(HDR)
+\tgcc -Ofast $(FLAGS) $(SRC) -o .bin/main 
 
 PHONY: debug
 debug: $(SRC) $(HDR)
-\tgcc -g -Wall $(FLAGS) $(SRC) -o .bin/main
+\tgcc -g $(FLAGS) $(SRC) -o .bin/main
 ' > Makefile
 
 clear
@@ -27,5 +31,8 @@ case $1 in
     ;;
     run)
         ./.bin/main
+    ;;
+    fast)
+        make lin_fast && ./.bin/main
     ;;
 esac

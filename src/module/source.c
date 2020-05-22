@@ -55,31 +55,35 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
         s_begin.col = 0;
     }
     
-    size_t ln_begin = cursor_pos;
-    if(self->source->data[cursor_pos] == '\n'){
-        ln_begin--;
-    }
-    for(; ln_begin > 0; ln_begin--){
-        if(self->source->data[ln_begin] == '\n'){
-            ln_begin++;
-            break;
+    size_t ln_begin = cursor_pos, pos = 0;
+    char val = ' ';
+
+    if(cursor_pos < self->source->len){
+
+        if(self->source->data[cursor_pos] == '\n'){
+            ln_begin--;
         }
+        for(; ln_begin > 0; ln_begin--){
+            if(self->source->data[ln_begin] == '\n'){
+                ln_begin++;
+                break;
+            }
+        }
+
+        pos = ln_begin;    
+        for(;pos < s_begin.pos;){
+            val = self->source->data[pos];
+            VL_Str_append_char(ln, val);
+            pos++;
+        }
+        VL_Str_append_cstr(ln, highlight_color);
+        for(;pos < cursor_pos; pos++){
+            val = self->source->data[pos];
+            VL_Str_append_char(ln, val);
+        }
+        VL_Str_append_cstr(ln, VLT_RESET);
     }
 
-    size_t pos = ln_begin;
-
-    char val = ' ';    
-    for(;pos < s_begin.pos;){
-        val = self->source->data[pos];
-        VL_Str_append_char(ln, val);
-        pos++;
-    }
-    VL_Str_append_cstr(ln, highlight_color);
-    for(;pos < cursor_pos; pos++){
-        val = self->source->data[pos];
-        VL_Str_append_char(ln, val);
-    }
-    VL_Str_append_cstr(ln, VLT_RESET);
     for(;pos < self->source->len; pos++){
         val = self->source->data[pos];
         VL_Str_append_char(ln, val);
@@ -91,7 +95,6 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
     if(val != '\n'){
         VL_Str_append_cstr(ln, "\n| ");
     }
-
 
     VL_Str_append_cstr(ln, highlight_color);
     for(pos = ln_begin; pos < s_begin.pos; pos++){

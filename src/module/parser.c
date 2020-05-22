@@ -1,13 +1,58 @@
 #include "parser.h"
 
-#define TOKEN_SPACE(X) X(' ') X('\n') X('\t') X('\r') X('\f') X('\b')
-#define TOKEN_SEP(X) X(',') X(';') X(':')
-#define TOKEN_BRACKET(X) X('(') X(')') X('[') X(']') X('{') X('}')
-#define TOKEN_OPERATOR(X)           \
-X('=') X('<') X('>')                \
-X('%') X('#') X('?')                \
-X('!') X('|') X('&') X('^') X('~')  \
-X('+') X('-') X('*') X('/')         \
+VL_SymMap* builtin_keywords;
+
+void add_value(VL_SymMap* self, const char* name, VL_Object* val){
+    VL_Str* temp_str = VL_Str_from_cstr(name);
+    VL_SymMap_insert_cstr(self, temp_str, VL_Str_hash(temp_str), val);
+    VL_Str_delete(temp_str);
+}
+void add_label(VL_SymMap* self, const char* name, VL_Keyword keyword){
+    VL_Object obj;
+    VL_Object_set_keyword(&obj, keyword);
+    add_value(self, name, &obj);
+}
+void VL_Parser_init(){
+    builtin_keywords = VL_SymMap_new(NULL, 1);
+
+    #define CASE(KEYWORD) add_label(builtin_keywords, VL_KEYWORD_GET_REPR(KEYWORD), VL_KEYWORD_GET_ENUM(KEYWORD));
+    VL_KEYWORD_MAPPING(CASE)
+    #undef CASE
+
+    VL_Object temp;
+
+    temp.type = VL_TYPE_NONE;
+    add_value(builtin_keywords, "None", &temp);
+
+    VL_Object_set_bool(&temp, true);
+    add_value(builtin_keywords, "True", &temp);
+
+    VL_Object_set_bool(&temp, false);
+    add_value(builtin_keywords, "False", &temp);
+    #undef ADD
+}
+void VL_Parser_quit(){
+    VL_SymMap_delete(builtin_keywords);
+}
+
+#define TOKEN_SPACE(X)  \
+    X(' ')  X('\n')     \
+    X('\t') X('\r')     \
+    X('\f') X('\b')
+
+#define TOKEN_SEP(X)    \
+    X(',') X(';') X(':')
+
+#define TOKEN_BRACKET(X)\
+    X('(') X(')')       \
+    X('[') X(']')       \
+    X('{') X('}')
+
+#define TOKEN_OPERATOR(X)               \
+    X('=') X('<') X('>')                \
+    X('%') X('?') X('$')                \
+    X('!') X('|') X('&') X('^') X('~')  \
+    X('+') X('-') X('*') X('/')         \
 
 char VL_Module_match_escape_seq(char in){
     switch(in){
@@ -135,7 +180,7 @@ bool VL_Module_parse_String(VL_Module* self, VL_ParseState* state){
 
 bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
     VL_ParseState begin = *state;
-    
+
     if(!VL_Module_parse_token_symbol_label(VL_Module_peek(self, state))){
         VL_Module_push_err_str(self, &begin, state,
             "Expected " VLT_ERR("Label")
@@ -144,63 +189,17 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
     }
 
     VL_Str* string = VL_Str_new(1);
-
     for(char chr; VL_Module_parse_token_symbol(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
         VL_Str_append_char(string, chr);
     }
 
-    state->val = NULL;
-    #define S(STR, SYM)                                     \
-    if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-        state->val = VL_Object_wrap_keyword(VL_SYM_ ## SYM);\
-    }
-    switch(string->len){
-        case 2:{
-            S("do", DO)
-            else S("if", IF)
-            else S("fn", FN)
-            break;
-        }
-        case 3:{
-            S("int", INT)
-            else S("not", NOT)
-            break;
-        }
-        case 4:{
-            if(VL_Str_cmp_cstr(string, "True") == 0){
-                state->val = VL_Object_wrap_bool(true);
-            }
-            else if(VL_Str_cmp_cstr(string, "None") == 0){
-                state->val = VL_Object_new(VL_TYPE_NONE);
-            }
-            else S("time", TIME)
-            else S("def!", SET)
-
-            break;
-        }
-        case 5:{
-            S("float", FLOAT)
-            else S("infix", INFIX)
-            else S("print", PRINT)
-            else S("while", WHILE)
-            else S("input", INPUT)
-            else S("tuple", TUPLE)
-            else S("quote", QUOTE)
-            
-            else if(VL_Str_cmp_cstr(string, "False") == 0){
-                state->val = VL_Object_wrap_bool(false);
-            }
-            break;
-        }
-        default:
-            break;
-    }
-    #undef S
+    VL_Object* sym = VL_SymMap_find_str(builtin_keywords, string);;
     
-    if(state->val == NULL){
+    if(sym == NULL){
         state->val = VL_Object_wrap_symbol(VL_Symbol_new(string));
     }
     else{
+        state->val = VL_Object_clone(sym);
         VL_Str_delete(string);
     }
 
@@ -220,42 +219,8 @@ bool VL_Module_parse_Operator(VL_Module* self, VL_ParseState* state){
             VL_Str_append_char(string, chr);
         }
 
-        state->val = NULL;
-        
-        #define C(CHR, SYM)                                         \
-            case CHR:                                               \
-                state->val = VL_Object_wrap_keyword(VL_SYM_##SYM);  \
-                break; 
-            
-        #define S(STR, SYM)                                     \
-        if(VL_Str_cmp_cstr(string, STR) == 0){                  \
-            state->val = VL_Object_wrap_keyword(VL_SYM_ ## SYM); \
-        }
-        switch(string->len){
-            case 1:
-                switch(string->data[0]){
-                    C('+', ADD) C('-', SUB) C('*', MUL) C('/', DIV)
-                    C('>', GT) C('<', LT)
-                    default:
-                        break;
-                }
-                break;
-            case 2:
-                S(">=", GTE) else S("<=", LTE) 
-                else S("==", EQ) else S("!=", NEQ)
-                else S("&&", AND) else S("||", OR)
-                break;
-            default:
-                break;
-        }
-        #undef C
-        #undef S
-
-        if(state->val == NULL){
-            state->val = VL_Object_new(VL_TYPE_NONE);
-        }
-
-        VL_Str_delete(string);
+        state->val = VL_Object_wrap_symbol(VL_Symbol_new(string));
+                
         return true;
     }
 
@@ -276,9 +241,10 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
                 VL_Module_parse_Space(self, state);
                 if(!VL_Module_match_chr(self, state, ')')){
                     VL_Module_push_err_str(self, begin, state,
-                        "Expected closing" VLT_ERR("parenthesis ')'") 
+                        "Expected closing " VLT_ERR("parenthesis ')'") 
                         " of " VLT_ERR("α-expr")
                     );
+                    VL_Object_delete(state->val);
                     return false;
                 }
                 return true;
@@ -290,9 +256,10 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
                 VL_Module_parse_Space(self, state);
                 if(!VL_Module_match_chr(self, state, ')')){
                     VL_Module_push_err_str(self, begin, state,
-                        "Expected closing" VLT_ERR("parenthesis ')'") 
+                        "Expected closing " VLT_ERR("parenthesis ')'") 
                         " of " VLT_ERR("α-expr")
                     );
+                    VL_Object_delete(state->val);
                     return false;
                 }
                 return true;
@@ -335,6 +302,8 @@ bool VL_Module_parse_FAtom(VL_Module* self, VL_ParseState* state){
         TOKEN_OPERATOR(C)
             return false;
         TOKEN_SPACE(C)
+            return false;
+        case '\0':
             return false;
         default:
             break;
@@ -490,7 +459,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
     
     VL_Expr* expr = VL_Expr_new(2);
 
-    state->val = VL_Object_wrap_keyword(VL_SYM_INFIX);
+    state->val = VL_Object_wrap_keyword(VL_KEYWORD_INFIX);
     VL_Expr_append_Object(expr, state->val, begin.p, state->p, self->id);
     
     size_t p_err = self->error_stack->len;    
