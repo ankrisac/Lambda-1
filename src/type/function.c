@@ -4,6 +4,7 @@ void VL_Function_init(VL_Function* self, VL_SymMap* parent_env, VL_Expr* args, V
     self->env = parent_env;
     self->args = args;
     self->body = body;
+    self->is_macro = false;
 }
 VL_Function* VL_Function_new(VL_SymMap* parent_env, VL_Expr* args, VL_Object* body){
     VL_Function* self = malloc(sizeof* self);

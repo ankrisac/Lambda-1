@@ -326,7 +326,8 @@ bool VL_Module_parse_FExpr(VL_Module* self, VL_ParseState* state){
     VL_ParseState temp = *state;
     size_t i = 0;
     while(true){
-        if(!VL_Module_parse_SpaceSep(self, &temp)){ break; }
+        VL_Module_parse_Space(self, &temp);
+        //if(!VL_Module_parse_SpaceSep(self, &temp)){ break; }
         if(!VL_Module_parse_FAtom(self, &temp)){ break; }
 
         VL_Expr_append_Object(expr, temp.val, state->p, temp.p, self->id);

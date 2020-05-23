@@ -147,6 +147,7 @@ VL_Str* VL_Str_from_cin(){
     char* buffer = NULL;
     size_t reserve_len = 0;
     size_t n = getline(&buffer, &reserve_len, stdin);
+    buffer[n - 1] = '\0';
 
     VL_Str* out = VL_Str_new(n);
     VL_Str_append_cstr(out, buffer);

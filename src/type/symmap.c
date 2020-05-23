@@ -35,7 +35,7 @@ void VL_SymMap_delete(VL_SymMap* self){
     VL_SymMap_clear(self);
     free(self);
 }
-size_t perturb(VL_SymMap* self, const VL_Str* str, size_t str_hash){
+size_t perturb(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
     size_t mask = self->len; 
     size_t j = str_hash;
     size_t perturb = str_hash;
@@ -90,7 +90,7 @@ void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, 
         self->data[i] = *value;
     }
 }
-VL_Object* find(VL_SymMap* self, const VL_Str* str, size_t str_hash){
+VL_Object* find(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
     size_t i = perturb(self, str, str_hash);
 
     if(self->keys[i].data != NULL && VL_Str_cmp(&self->keys[i], str) == 0){
@@ -105,14 +105,14 @@ VL_Object* find(VL_SymMap* self, const VL_Str* str, size_t str_hash){
 void VL_SymMap_insert(VL_SymMap* self, const VL_Symbol* sym, VL_Object* value){
     VL_SymMap_insert_cstr(self, sym->label, sym->hash, value);
 }
-VL_Object* VL_SymMap_find_str(VL_SymMap* self, const VL_Str* str){
+VL_Object* VL_SymMap_find_str(const VL_SymMap* self, const VL_Str* str){
     return find(self, str, VL_Str_hash(str));
 }
-VL_Object* VL_SymMap_find(VL_SymMap* self, const VL_Symbol* sym){
+VL_Object* VL_SymMap_find(const VL_SymMap* self, const VL_Symbol* sym){
     return find(self, sym->label, sym->hash);
 }
 
-void VL_SymMap_print(VL_SymMap* self){
+void VL_SymMap_print(const VL_SymMap* self){
     printf("{ ");
     if(self->len > 0){
         for(size_t i = 0; i < self->len; i++){

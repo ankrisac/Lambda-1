@@ -1,18 +1,25 @@
 #pragma once
 #include "../util.h"
 
-#define VL_KEYWORD_MAPPING(X)                   \
+#define VL_KEYWORD_BUILTIN_MAPPING(X)           \
 X(ADD)      X(SUB)      X(MUL)      X(DIV)      \
 X(AND)      X(OR)       X(NOT)                  \
 X(LTE)      X(GTE)      X(LT)       X(GT)       \
 X(EQ)       X(NEQ)                              \
-X(FLOAT)    X(INT)      X(STRING)   X(TUPLE)    \
-X(SET)                                          \
+X(INT)      X(FLOAT)    X(STRING)   X(TUPLE)    \
 X(PRINT)    X(INPUT)    X(TIME)                 \
-X(QUOTE)    X(QUASIQUOTE)                       \
-X(UNQUOTE)  X(UNQUOTESPLICE)                    \
-X(DO)       X(IF)       X(WHILE)    X(INFIX)    \
-X(FN)
+
+#define VL_KEYWORD_SPECIAL_MAPPING(X)   \
+X(SET)                                  \
+X(QUOTE)    X(QUASIQUOTE)               \
+X(UNQUOTE)  X(UNQUOTESPLICE)            \
+X(DO)       X(INFIX)                    \
+X(IF)       X(WHILE)                    \
+X(FN)       X(MACRO)
+
+#define VL_KEYWORD_MAPPING(X)   \
+VL_KEYWORD_SPECIAL_MAPPING(X)   \
+VL_KEYWORD_BUILTIN_MAPPING(X)   
 
 #define VL_KEYWORD_GET_ENUM(X) VL_KEYWORD_ ## X
 #define VL_KEYWORD_GET_REPR(X) "#" #X
@@ -104,6 +111,7 @@ struct VL_Function{
     VL_SymMap* env;
     VL_Expr* args;
     VL_Object* body;
+    bool is_macro;
 };
 
 struct VL_ARCData{

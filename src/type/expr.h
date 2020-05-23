@@ -24,6 +24,8 @@ VL_Expr* VL_Expr_clone(const VL_Expr* self);
 
 void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end, size_t module_id);
 void VL_Expr_append(VL_Expr* self, VL_ExprAtom* other);
+void VL_Expr_append_expr(VL_Expr* self, const VL_Expr* other);
+void VL_Expr_mappend_expr(VL_Expr* self, VL_Expr* other);
 
 VL_Object* VL_Expr_pop_Object(VL_Expr* self);
 VL_ExprAtom* VL_Expr_pop(VL_Expr* self);

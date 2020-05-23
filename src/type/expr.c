@@ -107,6 +107,25 @@ void VL_Expr_append(VL_Expr* self, VL_ExprAtom* other){
     self->data[self->len] = *other;
     self->len++;
 }
+void VL_Expr_mappend_expr(VL_Expr* self, VL_Expr* other){
+    if(self->len + other->len >= self->reserve_len){
+        __VL_Expr_realloc(self, self->len + other->len);
+    }
+    for(size_t i = 0; i < other->len; i++){
+        self->data[self->len + i].val = other->data[i].val;
+    }
+    self->len += other->len;
+}
+void VL_Expr_append_expr(VL_Expr* self, const VL_Expr* other){
+    if(self->len + other->len >= self->reserve_len){
+        __VL_Expr_realloc(self, self->len + other->len);
+    }
+    for(size_t i = 0; i < other->len; i++){
+        VL_Object_copy(self->data[self->len + i].val, other->data[i].val);
+    }
+    self->len += other->len;
+}
+
 VL_Object* VL_Expr_pop_Object(VL_Expr* self){
     if(self->len > 0){
         self->len--;

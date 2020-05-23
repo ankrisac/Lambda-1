@@ -1,1 +1,15 @@
-#PRINT 3;
+#DO{
+    #SET # (#MACRO [comment] []);
+
+    # "this is a comment nice";
+
+    #SET set! (#MACRO [var, value]
+        (#QUASIQUOTE 
+            (#SET 
+                (#UNQUOTE var)
+                (#UNQUOTE value))));
+
+    set! x 2;
+
+    #PRINT x;
+};
