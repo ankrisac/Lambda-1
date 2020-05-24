@@ -47,9 +47,10 @@ void VL_Object_clear(VL_Object* self){
     #define ND(TYPE_ENUM) C(TYPE_ENUM, )
 
     switch(self->type){
-        ND(KEYWORD)
         ND(NONE)    ND(BOOL)
         ND(INT)     ND(FLOAT)
+        ND(KEYWORD)
+        ND(ERROR)
 
         C(SYMBOL, VL_Symbol_delete(self->data.symbol))
         C(STRING, VL_Str_delete(self->data.str))
@@ -88,9 +89,10 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
             self->data.arc->weak_ref_count++;)
 
     switch(src->type){
-        D(KEYWORD, keyword) C(NONE, )
-        D(BOOL, v_bool) D(INT, v_int)   D(FLOAT, v_float)
- 
+        C(NONE, )           D(BOOL, v_bool) 
+        D(INT, v_int)       D(FLOAT, v_float)
+        D(KEYWORD, keyword) D(ERROR, err)
+
         C(SYMBOL, self->data.symbol = VL_Symbol_clone(src->data.symbol))
         C(STRING, self->data.str = VL_Str_clone(src->data.str))
         C(TUPLE, self->data.tuple = VL_Tuple_clone(src->data.tuple))
@@ -170,6 +172,7 @@ void VL_Object_print(const VL_Object* self){
     
     switch(self->type){
         C(KEYWORD, VL_Keyword_print(self->data.keyword))
+        C(ERROR, VL_Error_print(self->data.err))
 
         C(NONE, printf("None")) 
         C(BOOL, printf((self->data.v_bool) ? "True" : "False"))
@@ -210,6 +213,8 @@ void VL_Object_repr(const VL_Object* self){
     
     switch(self->type){
         C(KEYWORD, VL_Keyword_print(self->data.keyword)) 
+        C(ERROR, VL_Error_repr(self->data.err))
+
         C(SYMBOL, VL_Symbol_print(self->data.symbol))
 
         C(NONE, printf("None")) 

@@ -1,6 +1,8 @@
 #pragma once
 #include "../util.h"
 
+#define VLCASE(ENUM, EXPR) case ENUM: { EXPR break; }
+
 #define VL_KEYWORD_BUILTIN_MAPPING(X)           \
 X(ADD)      X(SUB)      X(MUL)      X(DIV)      \
 X(AND)      X(OR)       X(NOT)                  \
@@ -11,6 +13,7 @@ X(PRINT)    X(INPUT)    X(TIME)                 \
 
 #define VL_KEYWORD_SPECIAL_MAPPING(X)   \
 X(SET)                                  \
+X(MACROEXPAND)                          \
 X(QUOTE)    X(QUASIQUOTE)               \
 X(UNQUOTE)  X(UNQUOTESPLICE)            \
 X(DO)       X(INFIX)                    \
@@ -28,12 +31,20 @@ VL_KEYWORD_BUILTIN_MAPPING(X)
 typedef enum{ VL_KEYWORD_MAPPING(NAME) } VL_Keyword;
 #undef NAME
 
+typedef enum {
+    VL_ERROR_SYMBOL_UNDEFINED,
+    VL_ERROR_ARG_MISMATCH,
+    VL_ERROR_TYPE_ERROR,
+    VL_ERROR_UNDEFINED
+}VL_Error;
+
 #define VL_TYPE_MAPPING(X)      \
+X(ERROR)                        \
 X(KEYWORD)      X(SYMBOL)       \
 X(BOOL)         X(NONE)         \
 X(INT)          X(FLOAT)        \
-X(STRING)       X(TUPLE)        \
-X(EXPR)                         \
+X(STRING)       X(EXPR)         \
+X(TUPLE)                        \
 X(RS_FUNCTION)  X(RW_FUNCTION)  \
 X(RS_STRING)    X(RW_STRING)    \
 
@@ -128,13 +139,15 @@ struct VL_ARCData{
 
 struct VL_Object{
     union{
-        VL_Keyword keyword;
-        VL_Symbol* symbol;
-
+        
         VL_Bool v_bool;
         VL_Int v_int;
         VL_Float v_float;
-
+        
+        VL_Error err;
+        VL_Keyword keyword;
+        
+        VL_Symbol* symbol;
         VL_Str* str;
         VL_Tuple* tuple;
         VL_Expr* expr;
@@ -150,8 +163,12 @@ struct VL_Object{
 
 void VL_Type_perror(const VL_Type type);
 void VL_Type_print(const VL_Type type);
+
 void VL_Keyword_print(const VL_Keyword keyword);
 void VL_Keyword_perror(const VL_Keyword keyword);
+
+void VL_Error_print(const VL_Error err);
+void VL_Error_repr(const VL_Error err);
 
 void VL_Symbol_init(VL_Symbol* self, VL_Str* label);
 VL_Symbol* VL_Symbol_new(VL_Str* label);

@@ -1,0 +1,52 @@
+#DO{
+    #SET t1 [#TIME];
+
+    #SET set! (#MACRO [var, value]
+        (#QUASIQUOTE 
+            (#SET 
+                (#UNQUOTE var)
+                (#UNQUOTE value))));
+
+    set! __lambdalambda (#MACRO [lambda, arg, body]
+        (#QUASIQUOTE (
+            (#UNQUOTE lambda) 
+            (#UNQUOTE arg)
+            (#UNQUOTE (#QUASIQUOTE 
+                (#DO (#UNQUOTE body)))))));
+
+    set! macro! (#MACRO [name, arg, body]
+        (#QUASIQUOTE [
+            #SET, #UNQUOTE name,
+            #UNQUOTE 
+                (#QUASIQUOTE
+                    (__lambdalambda #MACRO (#UNQUOTE arg) (#UNQUOTE body)))
+        ])
+    );
+
+    macro! fn! [name, arg, body] {
+        #QUASIQUOTE [
+            #SET, #UNQUOTE name,
+            #UNQUOTE 
+                (#QUASIQUOTE 
+                    (__lambdalambda #FN (#UNQUOTE arg) (#UNQUOTE body)))
+        ];
+    };
+
+    set! print! #PRINT;
+    set! input! #INPUT;
+    set! time #TIME;
+
+    fn! hello! [] {
+        print! "hello, what is your name ?\n";
+        set! name "sachin";
+
+        print! "hello " name "!\n";
+    };
+
+    [hello!];
+
+    set! t2 [time];
+
+    print! "Time elapsed = " (#SUB t2 t1) "\n";
+
+};

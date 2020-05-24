@@ -1,15 +1,34 @@
 #DO{
-    #SET # (#MACRO [comment] []);
+    #SET t1 [#TIME];
 
-    # "this is a comment nice";
+    #SET set! (#MACRO [val, value]
+        (#QQ [#SET, #QU val, #QU value]));
 
-    #SET set! (#MACRO [var, value]
-        (#QUASIQUOTE 
-            (#SET 
-                (#UNQUOTE var)
-                (#UNQUOTE value))));
+    set! macro! (#MACRO [name, args, body]
+        (#QUASIQUOTE [#SET, #UNQUOTE name, 
+                #QU (#QQ [#MACRO, #QU args, #QU (#QQ [#DO, #QU body])])]));
+    
+    macro! fn! [name, args, body] {
+        #QQ [#SET, #QU name, 
+                #QU (#QQ [#FN, #QU args, #QU (#QQ [#DO, #QU body])])];
+    };
 
-    set! x 2;
+    set! print #PRINT;
+    set! time #TIME;
 
-    #PRINT x;
+    fn! hello [] {
+        print "hello!";
+    };
+
+    macro! while [cond, body] {
+        #QQ[#WHILE, #QU cond, #QU (#QQ[#DO, #QU body])];
+    };
+
+    macro! incc [arg] {
+        #QQ[#SET, #QU arg, #QU (#QQ[#ADD, #QU arg, 1])];
+    };
+
+    set! t2 [time];
+
+    print "Time = " (#SUB t2 t1) "\n";
 };

@@ -19,6 +19,11 @@ void VL_Parser_init(){
     VL_KEYWORD_MAPPING(CASE)
     #undef CASE
 
+    add_label(builtin_keywords, "#Q", VL_KEYWORD_QUOTE);
+    add_label(builtin_keywords, "#QQ", VL_KEYWORD_QUASIQUOTE);
+    add_label(builtin_keywords, "#QU", VL_KEYWORD_UNQUOTE);
+    add_label(builtin_keywords, "#QS", VL_KEYWORD_UNQUOTESPLICE);
+
     VL_Object temp;
 
     temp.type = VL_TYPE_NONE;
@@ -41,6 +46,8 @@ void VL_Parser_quit(){
     X('\t') X('\r')     \
     X('\f') X('\b')
 
+#define TOKEN_RESERVED(X) X('"')
+
 #define TOKEN_SEP(X)    \
     X(',') X(';') X(':')
 
@@ -49,11 +56,11 @@ void VL_Parser_quit(){
     X('[') X(']')       \
     X('{') X('}')
 
-#define TOKEN_OPERATOR(X)               \
-    X('=') X('<') X('>')                \
-    X('%') X('?') X('$')                \
-    X('!') X('|') X('&') X('^') X('~')  \
-    X('+') X('-') X('*') X('/')         \
+#define TOKEN_OPERATOR(X)       \
+    X('=') X('<') X('>')        \
+    X('%') X('?') X('$')        \
+    X('!') X('|') X('&') X('^') \
+    X('+') X('-') X('*') X('/') \
 
 char VL_Module_match_escape_seq(char in){
     switch(in){
@@ -67,7 +74,7 @@ char VL_Module_match_escape_seq(char in){
 bool VL_Module_parse_token_symbol(char val){
     switch(val){
         #define C(X) case X:
-        TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C)
+        TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C) TOKEN_RESERVED(C)
             return false;
         default:
             return true;
@@ -76,7 +83,7 @@ bool VL_Module_parse_token_symbol(char val){
 bool VL_Module_parse_token_symbol_label(char val){
     switch(val){
         #define C(X) case X:
-        TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C) TOKEN_OPERATOR(C)
+        TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C) TOKEN_RESERVED(C) TOKEN_OPERATOR(C)
             return false;
         default:
             return true;

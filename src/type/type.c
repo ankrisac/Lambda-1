@@ -22,6 +22,26 @@ void VL_Keyword_perror(const VL_Keyword type){
     printf(VLT_RESET "]");
 }
 
+void VL_Error_print(const VL_Error err){
+    switch(err){
+        case VL_ERROR_ARG_MISMATCH:
+            printf("ARG MISMATCH");
+            break;
+        case VL_ERROR_SYMBOL_UNDEFINED:
+            printf("SYMBOL UNDEFINED");
+            break;
+        case VL_ERROR_TYPE_ERROR:
+            printf("TYPE ERROR");
+            break;
+        default:
+            printf("UNDEFINED ERROR");
+            break;
+    }
+}
+void VL_Error_repr(const VL_Error err){
+    VL_Error_print(err);
+}
+
 void VL_Symbol_init(VL_Symbol* self, VL_Str* label){
     self->label = label;
     self->hash = VL_Str_hash(self->label);
