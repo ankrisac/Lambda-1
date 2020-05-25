@@ -28,4 +28,5 @@ bool VL_Module_parse_BExpr(VL_Module* self, VL_ParseState* state);
 bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state);
 void VL_Module_parse_NExpr(VL_Module* self, VL_ParseState* state);
 
-VL_ParseState VL_Module_parse_Lisp(VL_Module* self, VL_ParseState in);
+VL_ParseState VL_Module_parse_Line(VL_Module* self, VL_ParseState state);
+VL_ParseState VL_Module_parse_File(VL_Module* self, VL_ParseState state);

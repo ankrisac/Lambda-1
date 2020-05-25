@@ -14,6 +14,7 @@ VL_Object* VL_Object_move_ref(VL_Object* self);
     VL_Object* VL_Object_wrap_##NAME(ARG);          \
     void VL_Object_set_##NAME(VL_Object* self, ARG);
 
+DEC(char,       const VL_Char val)
 DEC(bool,       const VL_Bool val)
 DEC(int,        const VL_Int val)
 DEC(float,      const VL_Float val)

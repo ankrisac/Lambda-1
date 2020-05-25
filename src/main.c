@@ -12,7 +12,7 @@ void VIPER(const char* path_name){
     VL_Core* viper = VL_Core_new();
     
     VL_Str* path = VL_Str_from_cstr(path_name);
-    VL_Core_exec_file(viper, path);
+    VL_Core_repl(viper);
     VL_Str_delete(path);
 
     VL_Core_delete(viper);

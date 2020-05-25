@@ -47,10 +47,10 @@ void VL_Object_clear(VL_Object* self){
     #define ND(TYPE_ENUM) C(TYPE_ENUM, )
 
     switch(self->type){
-        ND(NONE)    ND(BOOL)
+        ND(NONE)    
+        ND(BOOL)    ND(CHAR)
         ND(INT)     ND(FLOAT)
-        ND(KEYWORD)
-        ND(ERROR)
+        ND(KEYWORD) ND(ERROR)
 
         C(SYMBOL, VL_Symbol_delete(self->data.symbol))
         C(STRING, VL_Str_delete(self->data.str))
@@ -89,7 +89,9 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
             self->data.arc->weak_ref_count++;)
 
     switch(src->type){
-        C(NONE, )           D(BOOL, v_bool) 
+        C(NONE, )           
+
+        D(BOOL, v_bool)     D(CHAR, v_char) 
         D(INT, v_int)       D(FLOAT, v_float)
         D(KEYWORD, keyword) D(ERROR, err)
 
@@ -134,6 +136,7 @@ void VL_Object_set_##NAME (VL_Object* self, TYPE val){      \
     self->type = VL_TYPE_##TYPE_ENUM; EXPR                  \
 }
 
+DEF(char, const VL_Char, CHAR, self->data.v_char = val; )
 DEF(bool, const VL_Bool, BOOL, self->data.v_bool = val; )
 DEF(int, const VL_Int, INT, self->data.v_int = val; )
 DEF(float, const VL_Float, FLOAT, self->data.v_float = val; )
@@ -177,6 +180,7 @@ void VL_Object_print(const VL_Object* self){
         C(NONE, printf("None")) 
         C(BOOL, printf((self->data.v_bool) ? "True" : "False"))
         
+        C(CHAR, printf("%c", self->data.v_char))
         C(INT, printf("%lli", self->data.v_int)) 
         C(FLOAT, printf("%f", self->data.v_float))
         
@@ -219,7 +223,8 @@ void VL_Object_repr(const VL_Object* self){
 
         C(NONE, printf("None")) 
         C(BOOL, printf((self->data.v_bool) ? "True" : "False"))
-        
+        C(CHAR, printf("'%c'", self->data.v_char))
+
         C(INT, printf("%lli", self->data.v_int)) 
         C(FLOAT, printf("%f", self->data.v_float))
         

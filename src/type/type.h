@@ -8,8 +8,10 @@ X(ADD)      X(SUB)      X(MUL)      X(DIV)      \
 X(AND)      X(OR)       X(NOT)                  \
 X(LTE)      X(GTE)      X(LT)       X(GT)       \
 X(EQ)       X(NEQ)                              \
-X(INT)      X(FLOAT)    X(STRING)   X(TUPLE)    \
+X(INT)      X(FLOAT)    X(CHAR)                 \
+X(STRING)   X(TUPLE)                            \
 X(PRINT)    X(INPUT)    X(TIME)                 \
+X(SEQGET)   X(SEQSET)                           
 
 #define VL_KEYWORD_SPECIAL_MAPPING(X)   \
 X(SET)                                  \
@@ -39,9 +41,9 @@ typedef enum {
 }VL_Error;
 
 #define VL_TYPE_MAPPING(X)      \
-X(ERROR)                        \
+X(NONE)         X(ERROR)        \
 X(KEYWORD)      X(SYMBOL)       \
-X(BOOL)         X(NONE)         \
+X(BOOL)         X(CHAR)         \
 X(INT)          X(FLOAT)        \
 X(STRING)       X(EXPR)         \
 X(TUPLE)                        \
@@ -55,6 +57,7 @@ X(RS_STRING)    X(RW_STRING)    \
 typedef enum{ VL_TYPE_MAPPING(NAME) } VL_Type;
 #undef NAME
 
+typedef char VL_Char;
 typedef bool VL_Bool;
 typedef long long int VL_Int;
 typedef double VL_Float;
@@ -139,7 +142,7 @@ struct VL_ARCData{
 
 struct VL_Object{
     union{
-        
+        VL_Char v_char;
         VL_Bool v_bool;
         VL_Int v_int;
         VL_Float v_float;

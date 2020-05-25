@@ -58,7 +58,7 @@ void VL_Parser_quit(){
 
 #define TOKEN_OPERATOR(X)       \
     X('=') X('<') X('>')        \
-    X('%') X('?') X('$')        \
+    X('%') X('$')               \
     X('!') X('|') X('&') X('^') \
     X('+') X('-') X('*') X('/') \
 
@@ -76,6 +76,8 @@ bool VL_Module_parse_token_symbol(char val){
         #define C(X) case X:
         TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C) TOKEN_RESERVED(C)
             return false;
+        case '\0':
+            return false;
         default:
             return true;
     }
@@ -84,6 +86,8 @@ bool VL_Module_parse_token_symbol_label(char val){
     switch(val){
         #define C(X) case X:
         TOKEN_SPACE(C) TOKEN_SEP(C) TOKEN_BRACKET(C) TOKEN_RESERVED(C) TOKEN_OPERATOR(C)
+            return false;
+        case '\0':
             return false;
         default:
             return true;
@@ -550,7 +554,33 @@ void VL_Module_parse_NExpr(VL_Module* self, VL_ParseState* state){
         VL_Object_delete(state->val);
     }
 }
-VL_ParseState VL_Module_parse_Lisp(VL_Module* self, VL_ParseState in){
-    VL_Module_parse_NExpr(self, &in);
-    return in;
+VL_ParseState VL_Module_parse_Line(VL_Module* self, VL_ParseState state){
+    VL_ParseState temp = state;
+    
+    VL_Module_parse_Space(self, &temp);
+        
+    VL_Module_parse_IExpr(self, &temp);    
+    if(!temp.ok){ return temp; }
+
+    VL_Module_parse_Space(self, &temp);
+    VL_Module_match_chr(self, &temp, '\0');
+    return temp;
+}
+VL_ParseState VL_Module_parse_File(VL_Module* self, VL_ParseState state){
+    VL_ParseState prev = state;
+    VL_ParseState curr;
+
+    while (true){
+        curr = prev;
+        VL_Module_parse_NExpr(self, &curr);
+
+        if(!curr.ok){
+            VL_Module_parse_Space(self, &prev);
+
+            if(VL_Module_match_chr(self, &prev, '\0')){
+                return prev;
+            }
+        }    
+    } 
+    return curr;
 }

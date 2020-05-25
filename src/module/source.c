@@ -13,14 +13,15 @@ VL_Module* VL_Module_from_file(const VL_Str* file_path){
     return NULL;
 }
 void VL_Module_clear(VL_Module* self){
-    VL_Str_delete(self->source);
-    VL_Str_delete(self->file_path);
-    
-    VL_Tuple_delete(self->error_stack);
-    
+    if(self->source != NULL){
+        VL_Str_delete(self->source);
+    }
     if(self->ast_tree != NULL){
         VL_Object_delete(self->ast_tree);
     }
+
+    VL_Str_delete(self->file_path);
+    VL_Tuple_delete(self->error_stack);
 }
 void VL_Module_delete(VL_Module* self){
     VL_Module_clear(self);

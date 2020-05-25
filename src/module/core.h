@@ -41,6 +41,7 @@ void VL_Core_error(VL_Core* self, const VL_ExprAtom* source);
 
 void VL_Core_exec(VL_Core* self, const VL_Object* ast);
 void VL_Core_exec_file(VL_Core* self, const VL_Str* file_path);
+void VL_Core_repl(VL_Core* self);
 
 #include "module.h"
 #include "parser.h"

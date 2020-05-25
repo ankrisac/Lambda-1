@@ -1,9 +1,21 @@
 #include "module.h"
 
-bool VL_Module_parse(VL_Module* self, const VL_Str* file_path){
+bool VL_Module_parse_line(VL_Module* self, VL_Str* str){
+    VL_ParseState in = { .ok = true, .p.pos = 0, .p.row = 0, .p.col = 0, .val = NULL };
+    VL_ParseState out = VL_Module_parse_Line(self, in);
+    self->ast_tree = out.val;
+
+    if(!out.ok){
+        self->ast_tree = NULL;
+        return false;
+    }
+
+    return true;
+}
+bool VL_Module_parse_file(VL_Module* self, const VL_Str* file_path){
     if(self->source != NULL){
         VL_ParseState in = { .ok = true, .p.pos = 0, .p.row = 0, .p.col = 0, .val = NULL };
-        VL_ParseState out = VL_Module_parse_Lisp(self, in);
+        VL_ParseState out = VL_Module_parse_File(self, in);
         self->ast_tree = out.val;
 
         if(!out.ok){
@@ -45,7 +57,7 @@ void VL_ModuleList_delete(VL_ModuleList* self){
     free(self->data);
     free(self);
 }
-VL_Module* VL_ModuleList_add_module(VL_ModuleList* self, const VL_Str* file_path){
+VL_Module* VL_ModuleList_add_modulefile(VL_ModuleList* self, const VL_Str* file_path){
     for(size_t i = 0; i < self->len; i++){
         if(VL_Str_cmp(file_path, self->data[i].file_path) == 0){
             return NULL;        

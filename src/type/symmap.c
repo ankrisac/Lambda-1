@@ -28,8 +28,8 @@ void VL_SymMap_clear(VL_SymMap* self){
     }
 
     free(self->keys);
-    free(self->data);
     free(self->hash);
+    free(self->data);
 }
 void VL_SymMap_delete(VL_SymMap* self){
     VL_SymMap_clear(self);
@@ -72,7 +72,7 @@ void resize(VL_SymMap* self, size_t len){
     *self = new_map;
 }
 void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, VL_Object* value){
-    if(self->elems > 0.7 * self->len){
+    if(10 * self->elems > 7 * self->len){
         size_t new_len = self->len * 4;
         resize(self, new_len);   
     }
@@ -81,13 +81,14 @@ void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, 
     if(self->keys[i].data == NULL){
         VL_Str_copy(&self->keys[i], str);
         VL_Object_clear(&self->data[i]);
+        
         self->data[i] = *value;
         self->hash[i] = str_hash;
         self->elems++;
     }
     else if(VL_Str_cmp(&self->keys[i], str) == 0){
         VL_Object_clear(&self->data[i]);
-        self->data[i] = *value;
+        VL_Object_copy(&self->data[i], value);
     }
 }
 VL_Object* find(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
@@ -113,20 +114,26 @@ VL_Object* VL_SymMap_find(const VL_SymMap* self, const VL_Symbol* sym){
 }
 
 void VL_SymMap_print(const VL_SymMap* self){
-    printf("{ ");
+    bool before = false;
+    
+    printf("{");
     if(self->len > 0){
         for(size_t i = 0; i < self->len; i++){
+            
             if(self->keys[i].data != NULL){
+                if(before){
+                    printf(", ");
+                }
+                else{
+                    before = true;
+                }
+
                 VL_Str_print(&self->keys[i]);
                 printf(":");
                 VL_Object_print(&self->data[i]);
-                printf(",");
             }
         }
-    }
-    printf("|");
-    if(self->parent != NULL){
-        VL_SymMap_print(self->parent);
+        
     }
     printf("}");
 }

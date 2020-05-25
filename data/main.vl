@@ -1,34 +1,30 @@
 #DO{
-    #SET t1 [#TIME];
+    #SET print #PRINT;
+    #SET time #TIME;
 
     #SET set! (#MACRO [val, value]
         (#QQ [#SET, #QU val, #QU value]));
 
     set! macro! (#MACRO [name, args, body]
-        (#QUASIQUOTE [#SET, #UNQUOTE name, 
-                #QU (#QQ [#MACRO, #QU args, #QU (#QQ [#DO, #QU body])])]));
+        (#QQ [#SET, #UNQUOTE name, 
+                #QU (#QQ [#MACRO, #QU args, [#DO, #QU body]])]));
+
+    macro! lambda [args, body] {
+        set! do_body (#QQ [#DO, #QU body]);
+        set! output (#QQ [#FN, #QU args, #QU do_body]);      
+        output;
+    };
+
+    set! λ lambda;
     
     macro! fn! [name, args, body] {
-        #QQ [#SET, #QU name, 
-                #QU (#QQ [#FN, #QU args, #QU (#QQ [#DO, #QU body])])];
+        set! lambda_body (#QQ [λ, #QU args, #QU body]);
+        set! output (#QQ [set!, #QU name, #QU lambda_body]);
+        output;
     };
 
-    set! print #PRINT;
-    set! time #TIME;
-
-    fn! hello [] {
-        print "hello!";
-    };
-
-    macro! while [cond, body] {
-        #QQ[#WHILE, #QU cond, #QU (#QQ[#DO, #QU body])];
-    };
-
-    macro! incc [arg] {
-        #QQ[#SET, #QU arg, #QU (#QQ[#ADD, #QU arg, 1])];
-    };
-
-    set! t2 [time];
-
-    print "Time = " (#SUB t2 t1) "\n";
+    
+    print "Quasiquote - ";
+    print (#QQ [1, 2, (#ADD (#QU (#ADD 1 2)) 2)]);
+    print "\n";
 };
