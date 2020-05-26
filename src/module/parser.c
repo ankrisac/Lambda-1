@@ -567,20 +567,31 @@ VL_ParseState VL_Module_parse_Line(VL_Module* self, VL_ParseState state){
     return temp;
 }
 VL_ParseState VL_Module_parse_File(VL_Module* self, VL_ParseState state){
-    VL_ParseState prev = state;
-    VL_ParseState curr;
+    VL_ParseState curr = state, prev = state;
+    
+    VL_Expr* expr = VL_Expr_new(1);
+    VL_Expr* do_expr = VL_Expr_new(2);
+
+    VL_Expr_append_Object(do_expr, VL_Object_wrap_keyword(VL_KEYWORD_DO), curr.p, curr.p, self->id);
+    VL_Expr_append_Object(do_expr, VL_Object_wrap_expr(expr), curr.p, curr.p, self->id);
 
     while (true){
-        curr = prev;
         VL_Module_parse_NExpr(self, &curr);
 
         if(!curr.ok){
             VL_Module_parse_Space(self, &prev);
 
             if(VL_Module_match_chr(self, &prev, '\0')){
+                prev.val = VL_Object_wrap_expr(do_expr);
                 return prev;
-            }
+            }            
+            
+            VL_Expr_delete(do_expr);
+            break;
         }    
+
+        VL_Expr_append_Object(expr, curr.val, prev.p, curr.p, self->id);
+        prev = curr;
     } 
     return curr;
 }

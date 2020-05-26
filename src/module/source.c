@@ -47,7 +47,7 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
     } 
     
     VL_Str_append_cstr(ln, " of ");
-    VL_Str_append(ln, self->file_path);
+    VL_Str_concat(ln, self->file_path);
     VL_Str_append_cstr(ln, "\n| ");
 
     size_t cursor_pos = (s_end.pos < self->source->len) ? s_end.pos : (self->source->len - 1);
@@ -113,7 +113,7 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
 void VL_Module_push_err(VL_Module* self, const VL_ParseState* begin, VL_ParseState* end, VL_Str* msg){
     VL_Str* ln = VL_Module_get_ln(self, begin->p, end->p, VLT_BOLD VLT_RED);
     VL_Str_append_cstr(ln, "| ");
-    VL_Str_append(ln, msg);
+    VL_Str_concat(ln, msg);
     VL_Str_delete(msg);
 
     VL_Object* err = VL_Object_wrap_str(ln);

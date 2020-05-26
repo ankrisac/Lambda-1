@@ -37,7 +37,6 @@ void VL_Core_delete(VL_Core* self);
 void VL_Core_eval_expr_args(VL_Core* self, VL_SymMap* scope, const VL_Expr* expr);
 
 void VL_Core_print_location(VL_Core* self, const VL_ExprAtom* atom);
-void VL_Core_error(VL_Core* self, const VL_ExprAtom* source);
 
 void VL_Core_exec(VL_Core* self, const VL_Object* ast);
 void VL_Core_exec_file(VL_Core* self, const VL_Str* file_path);

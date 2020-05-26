@@ -19,6 +19,8 @@ debug: $(SRC) $(HDR)
 ' > Makefile
 
 clear
+echo "Arguments" $@ $@:
+
 case $1 in
     mem)
         make lin && valgrind --leak-check=full --track-origins=yes ./.bin/main

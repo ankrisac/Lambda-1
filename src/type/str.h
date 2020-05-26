@@ -14,7 +14,7 @@ void VL_Str_copy(VL_Str* self, const VL_Str* src);
 void VL_Str_copy_cstr(VL_Str* self, const char* str);
 VL_Str* VL_Str_clone(const VL_Str* self);
 
-void VL_Str_append(VL_Str* self, const VL_Str* value);
+void VL_Str_concat(VL_Str* self, const VL_Str* value);
 void VL_Str_append_char(VL_Str* self, const char value);
 void VL_Str_append_cstr(VL_Str* self, const char* value);
 void VL_Str_append_int(VL_Str* self, VL_Int value);

@@ -54,12 +54,11 @@ void VL_Object_clear(VL_Object* self){
 
         C(SYMBOL, VL_Symbol_delete(self->data.symbol))
         C(STRING, VL_Str_delete(self->data.str))
-        
+        C(EXPR, VL_Expr_delete(self->data.expr))
+
+        RC(TUPLE, tuple, VL_Tuple_clear)
         RC(STRING, str, VL_Str_clear)
         RC(FUNCTION, fn, VL_Function_clear)
-
-        C(TUPLE, VL_Tuple_delete(self->data.tuple))
-        C(EXPR, VL_Expr_delete(self->data.expr))        
     }
     #undef C
 
@@ -97,11 +96,11 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
 
         C(SYMBOL, self->data.symbol = VL_Symbol_clone(src->data.symbol))
         C(STRING, self->data.str = VL_Str_clone(src->data.str))
-        C(TUPLE, self->data.tuple = VL_Tuple_clone(src->data.tuple))
         C(EXPR, self->data.expr = VL_Expr_clone(src->data.expr))
         
         R(FUNCTION)
         R(STRING)
+        R(TUPLE)
     }
 
     #undef C
@@ -145,7 +144,6 @@ DEF(keyword, const VL_Keyword, KEYWORD, self->data.keyword = val; )
 DEF(symbol, VL_Symbol*, SYMBOL, self->data.symbol = val; )
 DEF(cstr, const char*, STRING, self->data.str = VL_Str_from_cstr(val); )
 DEF(str, VL_Str*, STRING, self->data.str = val; )
-DEF(tuple, VL_Tuple*, TUPLE, self->data.tuple = val; )
 DEF(expr, VL_Expr*, EXPR, self->data.expr = val; )
 #undef DEF
 
@@ -185,12 +183,12 @@ void VL_Object_print(const VL_Object* self){
         C(FLOAT, printf("%f", self->data.v_float))
         
         C(STRING, VL_Str_print(self->data.str)) 
-        C(TUPLE, VL_Tuple_print(self->data.tuple))
         C(EXPR, VL_Expr_print(self->data.expr))
 
         C(SYMBOL, VL_Symbol_print(self->data.symbol)) 
-
+        
         R(STRING, str, VL_Str_print)
+        R(TUPLE, tuple, VL_Tuple_print)
         R(FUNCTION, fn, VL_Function_print)
     }
 
@@ -229,10 +227,10 @@ void VL_Object_repr(const VL_Object* self){
         C(FLOAT, printf("%f", self->data.v_float))
         
         C(STRING, VL_Str_repr(self->data.str)) 
-        C(TUPLE, VL_Tuple_repr(self->data.tuple))
         C(EXPR, VL_Expr_repr(self->data.expr))
         
-        R(STRING, str, VL_Str_print)
+        R(TUPLE, tuple, VL_Tuple_repr)
+        R(STRING, str, VL_Str_repr)
         R(FUNCTION, fn, VL_Function_repr)
     }
 

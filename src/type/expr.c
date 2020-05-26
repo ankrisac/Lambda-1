@@ -45,23 +45,23 @@ void VL_ExprAtom_print(const VL_ExprAtom* self){
 }
 
 
-void __VL_Expr_malloc(VL_Expr* self, size_t len){
+void expr_allocate(VL_Expr* self, size_t len){
     len = (len != 0) ? len : 1;
     self->data = malloc(len * sizeof* self->data);
     self->reserve_len = len;
 }
-void __VL_Expr_realloc(VL_Expr* self, size_t len){
+void expr_reserve(VL_Expr* self, size_t len){
     self->data = realloc(self->data, len * sizeof* self->data);
     self->reserve_len = len;
 }
-void __VL_Expr_grow(VL_Expr* self){
-    __VL_Expr_realloc(self, self->reserve_len * 2);
+void expr_grow(VL_Expr* self){
+    expr_reserve(self, self->reserve_len * 2);
 }
 
 void VL_Expr_init(VL_Expr* self, size_t len){
     len = (len != 0) ? len : 1;
     self->len = 0;
-    __VL_Expr_malloc(self, len);
+    expr_allocate(self, len);
 }
 VL_Expr* VL_Expr_new(size_t len){
     VL_Expr* out = malloc(sizeof(VL_Expr));
@@ -81,7 +81,7 @@ void VL_Expr_delete(VL_Expr* self){
 
 void VL_Expr_copy(VL_Expr* self, const VL_Expr* src){
     self->len = src->len;
-    __VL_Expr_malloc(self, self->len);
+    expr_allocate(self, self->len);
 
     for(size_t i = 0; i < self->len; i++){
         VL_ExprAtom_copy(&self->data[i], &src->data[i]);
@@ -95,21 +95,21 @@ VL_Expr* VL_Expr_clone(const VL_Expr* self){
 
 void VL_Expr_append_Object(VL_Expr* self, VL_Object* other, VL_SrcPos begin, VL_SrcPos end, size_t module_id){
     if(self->len >= self->reserve_len){
-        __VL_Expr_grow(self);
+        expr_grow(self);
     }
     self->data[self->len] = (VL_ExprAtom){ .val = other, .begin = begin, .end = end, .module_id = module_id };
     self->len++;
 }
 void VL_Expr_append(VL_Expr* self, VL_ExprAtom* other){
     if(self->len >= self->reserve_len){
-        __VL_Expr_grow(self);
+        expr_grow(self);
     }
     self->data[self->len] = *other;
     self->len++;
 }
 void VL_Expr_mappend_expr(VL_Expr* self, VL_Expr* other){
     if(self->len + other->len >= self->reserve_len){
-        __VL_Expr_realloc(self, self->len + other->len);
+        expr_reserve(self, self->len + other->len);
     }
     for(size_t i = 0; i < other->len; i++){
         self->data[self->len + i].val = other->data[i].val;
@@ -118,7 +118,7 @@ void VL_Expr_mappend_expr(VL_Expr* self, VL_Expr* other){
 }
 void VL_Expr_append_expr(VL_Expr* self, const VL_Expr* other){
     if(self->len + other->len >= self->reserve_len){
-        __VL_Expr_realloc(self, self->len + other->len);
+        expr_reserve(self, self->len + other->len);
     }
     for(size_t i = 0; i < other->len; i++){
         VL_Object_copy(self->data[self->len + i].val, other->data[i].val);

@@ -1,21 +1,21 @@
 #include "str.h"
 
-void __VL_Str_malloc(VL_Str* self, size_t len){
+void str_allocate(VL_Str* self, size_t len){
     len = (len != 0) ? len : 1;
     self->data = malloc(len * sizeof* self->data);
     self->reserve_len = len;
 }
-void __VL_Str_realloc(VL_Str* self, size_t len){
+void str_reserve(VL_Str* self, size_t len){
     self->data = realloc(self->data, len * sizeof* self->data);
     self->reserve_len = len;
 }
-void __VL_Str_grow(VL_Str* self){
-    __VL_Str_realloc(self, self->reserve_len * 2);
+void str_grow(VL_Str* self){
+    str_reserve(self, self->reserve_len * 2);
 }
 
 void VL_Str_init(VL_Str* self, size_t len){
     self->len = 0;
-    __VL_Str_malloc(self, len);
+    str_allocate(self, len);
 }
 VL_Str* VL_Str_new(size_t len){
     VL_Str* out = malloc(sizeof(VL_Str));
@@ -52,25 +52,25 @@ VL_Str* VL_Str_clone(const VL_Str* self){
 }
 void VL_Str_copy(VL_Str* self, const VL_Str* src){
     self->len = src->len;
-    __VL_Str_malloc(self, src->len);
+    str_allocate(self, src->len);
     memcpy(self->data, src->data, src->len);
 }
 void VL_Str_copy_cstr(VL_Str* self, const char* value){
     self->len = strlen(value);
-    __VL_Str_malloc(self, self->len);
+    str_allocate(self, self->len);
     memcpy(self->data, value, self->len);
 }
 
-void VL_Str_append(VL_Str* self, const VL_Str* value){
+void VL_Str_concat(VL_Str* self, const VL_Str* value){
     if(self->len + value->len >= self->reserve_len){
-        __VL_Str_realloc(self, self->len + value->len);
+        str_reserve(self, self->len + value->len);
     }
     memcpy(&self->data[self->len], value->data, value->len);
     self->len = self->len + value->len;
 }
 void VL_Str_append_char(VL_Str* self, char value){
     if(self->len >= self->reserve_len){
-        __VL_Str_grow(self);
+        str_grow(self);
     }   
     self->data[self->len] = value;
     self->len++;
@@ -78,14 +78,14 @@ void VL_Str_append_char(VL_Str* self, char value){
 void VL_Str_append_cstr(VL_Str* self, const char* value){
     size_t len = strlen(value);
     if(self->len + len >= self->reserve_len){
-        __VL_Str_realloc(self, self->len + len);
+        str_reserve(self, self->len + len);
     }
     memcpy(&self->data[self->len], value, len);
     self->len = self->len + len;
 }
 void VL_Str_append_int(VL_Str* self, VL_Int value){
     VL_Str* int_str = VL_Str_from_int(value);
-    VL_Str_append(self, int_str);
+    VL_Str_concat(self, int_str);
     VL_Str_delete(int_str);
 }
 

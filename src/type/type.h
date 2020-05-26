@@ -11,7 +11,7 @@ X(EQ)       X(NEQ)                              \
 X(INT)      X(FLOAT)    X(CHAR)                 \
 X(STRING)   X(TUPLE)                            \
 X(PRINT)    X(INPUT)    X(TIME)                 \
-X(SEQGET)   X(SEQSET)                           
+X(SEQGET)   X(SEQSET)   X(SEQLEN)                        
 
 #define VL_KEYWORD_SPECIAL_MAPPING(X)   \
 X(SET)                                  \
@@ -46,7 +46,7 @@ X(KEYWORD)      X(SYMBOL)       \
 X(BOOL)         X(CHAR)         \
 X(INT)          X(FLOAT)        \
 X(STRING)       X(EXPR)         \
-X(TUPLE)                        \
+X(RS_TUPLE)     X(RW_TUPLE)     \
 X(RS_FUNCTION)  X(RW_FUNCTION)  \
 X(RS_STRING)    X(RW_STRING)    \
 

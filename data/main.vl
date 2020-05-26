@@ -1,30 +1,27 @@
-#DO{
-    #SET print #PRINT;
-    #SET time #TIME;
+#PRINT "Viper tail call test\n";
 
-    #SET set! (#MACRO [val, value]
-        (#QQ [#SET, #QU val, #QU value]));
+#SET succ (#FN [n] (#ADD n 1));
 
-    set! macro! (#MACRO [name, args, body]
-        (#QQ [#SET, #UNQUOTE name, 
-                #QU (#QQ [#MACRO, #QU args, [#DO, #QU body]])]));
+#PRINT succ " => succ 1 = " (succ 1) "\n";
 
-    macro! lambda [args, body] {
-        set! do_body (#QQ [#DO, #QU body]);
-        set! output (#QQ [#FN, #QU args, #QU do_body]);      
-        output;
-    };
+#PRINT "Mutual Looping test\n";
 
-    set! λ lambda;
-    
-    macro! fn! [name, args, body] {
-        set! lambda_body (#QQ [λ, #QU args, #QU body]);
-        set! output (#QQ [set!, #QU name, #QU lambda_body]);
-        output;
-    };
+#SET loop1 (#FN [n] (
+        #DO {
+            #PRINT n "\n";
+            #IF (#GT n 0) 
+                (loop2 (#SUB n 1));
+        }
+    )
+);
+#SET loop2 (#FN [n] (
+        #DO {
+            #PRINT n "\n";
+            #IF (#GT n 0) 
+                (loop1 (#ADD n 2));
+        }
+    )
+);
 
-    
-    print "Quasiquote - ";
-    print (#QQ [1, 2, (#ADD (#QU (#ADD 1 2)) 2)]);
-    print "\n";
-};
+#PRINT "looping\n";
+loop1 1000;

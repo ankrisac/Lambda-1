@@ -23,7 +23,6 @@ DEC(keyword,    const VL_Keyword val)
 DEC(symbol,     VL_Symbol* val)
 DEC(cstr,       const char* val)
 DEC(str,        VL_Str* val)
-DEC(tuple,      VL_Tuple* val)
 DEC(expr,       VL_Expr* val)
 
 
