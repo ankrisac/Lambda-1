@@ -28,6 +28,7 @@ typedef struct{
     VL_Object* ast;
     
     VL_SymMap* scope_global;
+    VL_SymMap* ptable;
     bool panic;
 }VL_Core;
 

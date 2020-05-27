@@ -1,27 +1,20 @@
-#PRINT "Viper tail call test\n";
-
-#SET succ (#FN [n] (#ADD n 1));
-
-#PRINT succ " => succ 1 = " (succ 1) "\n";
-
-#PRINT "Mutual Looping test\n";
-
-#SET loop1 (#FN [n] (
-        #DO {
-            #PRINT n "\n";
-            #IF (#GT n 0) 
-                (loop2 (#SUB n 1));
-        }
-    )
-);
-#SET loop2 (#FN [n] (
-        #DO {
-            #PRINT n "\n";
-            #IF (#GT n 0) 
-                (loop1 (#ADD n 2));
-        }
-    )
+#SET (:=) (#MACRO [var, val] 
+    (#QQ [#SET, #QU var, #QU val])
 );
 
-#PRINT "looping\n";
-loop1 1000;
+#SET (+) #ADD; #SET (-) #SUB;
+#SET (*) #MUL; #SET (/) #DIV;
+
+#SET (<) #LT; #SET (>) #GT;
+#SET (<=) #LTE; #SET (>=) #GTE;
+
+#SET (==) #EQ; #SET (!=) #NEQ;
+
+#SET (&&) #AND; #SET (||) #OR; 
+#SET not #NOT;
+
+#SET print #PRINT;
+#SET print #PRINT;
+
+x := 1 + 2 + 3;
+print x;

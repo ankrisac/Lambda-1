@@ -58,7 +58,7 @@ void VL_Object_clear(VL_Object* self){
 
         RC(TUPLE, tuple, VL_Tuple_clear)
         RC(STRING, str, VL_Str_clear)
-        RC(FUNCTION, fn, VL_Function_clear)
+        C(FUNCTION, RS_CLEAR(VL_Function_clear, fn))
     }
     #undef C
 
@@ -73,19 +73,26 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
     #define D(ENUM, TAG) case VL_TYPE_ ## ENUM: self->data.TAG = src->data.TAG; break;
 
-    #define R_CASE(TYPE_ENUM, EXPR)         \
+    #define RS(TYPE_ENUM)                   \
         case TYPE_ENUM: {                   \
             self->data.arc = src->data.arc; \
             self->type = TYPE_ENUM;         \
-            EXPR                            \
+            self->data.arc->ref_count++;    \
             break;                          \
         }
+
+    #define RW(TYPE_ENUM)                       \
+        case TYPE_ENUM: {                       \
+            self->data.arc = src->data.arc;     \
+            self->type = TYPE_ENUM;             \
+            self->data.arc->weak_ref_count++;   \
+            break;                              \
+        }
+
         
-    #define R(TYPE)                             \
-        R_CASE(VL_TYPE_GET_ENUM(RS_##TYPE),     \
-            self->data.arc->ref_count++;)       \
-        R_CASE(VL_TYPE_GET_ENUM(RW_##TYPE),     \
-            self->data.arc->weak_ref_count++;)
+    #define R(TYPE)                     \
+        RS(VL_TYPE_GET_ENUM(RS_##TYPE)) \
+        RW(VL_TYPE_GET_ENUM(RW_##TYPE))
 
     switch(src->type){
         C(NONE, )           
@@ -98,15 +105,16 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
         C(STRING, self->data.str = VL_Str_clone(src->data.str))
         C(EXPR, self->data.expr = VL_Expr_clone(src->data.expr))
         
-        R(FUNCTION)
+        RS(VL_TYPE_FUNCTION)
         R(STRING)
         R(TUPLE)
     }
 
     #undef C
     #undef D
+    #undef RS
+    #undef RW
     #undef R
-    #undef R_CASE
 
     self->type = src->type;
 }
@@ -189,7 +197,8 @@ void VL_Object_print(const VL_Object* self){
         
         R(STRING, str, VL_Str_print)
         R(TUPLE, tuple, VL_Tuple_print)
-        R(FUNCTION, fn, VL_Function_print)
+        
+        RS(FUNCTION, fn, VL_Function_print)
     }
 
     #undef C
@@ -231,7 +240,8 @@ void VL_Object_repr(const VL_Object* self){
         
         R(TUPLE, tuple, VL_Tuple_repr)
         R(STRING, str, VL_Str_repr)
-        R(FUNCTION, fn, VL_Function_repr)
+        
+        RS(FUNCTION, fn, VL_Function_repr)
     }
 
     #undef C

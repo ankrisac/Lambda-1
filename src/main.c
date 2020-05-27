@@ -13,8 +13,8 @@ void VIPER(const char* path_name){
     
     VL_Str* path = VL_Str_from_cstr(path_name);  
 
-    VL_Core_repl(viper);
-    //VL_Core_exec_file(viper, path);
+    //VL_Core_repl(viper);
+    VL_Core_exec_file(viper, path);
 
     VL_Str_delete(path);
     VL_Core_delete(viper);
@@ -31,7 +31,6 @@ void VIPER(const char* path_name){
 }
 
 int main(int argc, char** argv){
-    printf("Arguments %i", argc);
     VIPER("data/main.vl");
 
 

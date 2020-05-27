@@ -49,7 +49,7 @@ void VL_Parser_quit(){
 #define TOKEN_RESERVED(X) X('"')
 
 #define TOKEN_SEP(X)    \
-    X(',') X(';') X(':')
+    X(',') X(';')
 
 #define TOKEN_BRACKET(X)\
     X('(') X(')')       \
@@ -58,7 +58,7 @@ void VL_Parser_quit(){
 
 #define TOKEN_OPERATOR(X)       \
     X('=') X('<') X('>')        \
-    X('%') X('$')               \
+    X('%') X('$') X(':')        \
     X('!') X('|') X('&') X('^') \
     X('+') X('-') X('*') X('/') \
 
@@ -201,7 +201,7 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
     }
 
     VL_Str* string = VL_Str_new(1);
-    for(char chr; VL_Module_parse_token_symbol(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
+    for(char chr; VL_Module_parse_token_symbol_label(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
         VL_Str_append_char(string, chr);
     }
 
@@ -227,7 +227,7 @@ bool VL_Module_parse_Operator(VL_Module* self, VL_ParseState* state){
         VL_Str_append_char(string, chr);
         VL_Module_next(state, chr);
 
-        for(; VL_Module_parse_token_symbol(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
+        for(; VL_Module_parse_token_symbol_operator(chr = VL_Module_peek(self, state)); VL_Module_next(state, chr)){
             VL_Str_append_char(string, chr);
         }
 

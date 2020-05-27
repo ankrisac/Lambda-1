@@ -5,12 +5,14 @@ VL_Core* VL_Core_new(){
     self->stack = VL_Tuple_new(100);
     self->modules = VL_ModuleList_new(1);
     self->scope_global = VL_SymMap_new(NULL, 10);
+    self->ptable = init_ptable();
     return self;
 }
 void VL_Core_delete(VL_Core* self){
     VL_Tuple_delete(self->stack);
     VL_ModuleList_delete(self->modules);
     VL_SymMap_delete(self->scope_global);
+    VL_SymMap_delete(self->ptable);
     free(self);
 }
 
@@ -301,26 +303,30 @@ DEF_FUNC(seqset){
 }
 
 UNARY_FUNC(seqlen, VL_KEYWORD_SEQLEN, 
-    FUNC_TYPECASE(STRING, 
+    case VL_TYPE_STRING: {
         size_t len = val->data.str->len;
         stack_drop(self);
         stack_push_int(self, len);
-    )
-    FUNC_TYPECASE(RS_STRING, 
+        break;
+    } 
+    case VL_TYPE_RS_STRING: { 
         size_t len = val->data.arc->str.len;
         stack_drop(self);
         stack_push_int(self, len);
-    )
-    FUNC_TYPECASE(RS_TUPLE, 
+        break; 
+    }
+    case VL_TYPE_RS_TUPLE: { 
         size_t len = val->data.arc->tuple.len;
         stack_drop(self);
         stack_push_int(self, len);
-    )
-    FUNC_TYPECASE(EXPR, 
+        break;
+    }
+    case VL_TYPE_EXPR: { 
         size_t len = val->data.expr->len;
         stack_drop(self);
         stack_push_int(self, len);
-    )
+        break;
+    }
 )
 
 UNARY_FUNC(not, VL_KEYWORD_NOT, 
@@ -512,12 +518,28 @@ bool macro_expand(VL_Core* self, VL_SymMap* env, VL_Object* ast){
     if(expr->len == 0){ return false; }                                        
 
     VL_Object* head = expr->data[0].val;                                
-    if(head->type != VL_TYPE_SYMBOL){ return false; } 
+    switch(head->type){
+        case VL_TYPE_KEYWORD:{
+            if(head->data.keyword == VL_KEYWORD_INFIX){
+                VL_Object infix_out;
+                VL_Object_set_expr(&infix_out, VL_Core_apply_infix(self, expr));
+
+                VL_Object_clear(ast);
+                *ast = infix_out;
+                return true;
+            }
+            return false;
+        }
+        case VL_TYPE_SYMBOL:
+            break;
+        default:
+            return false;
+    }
 
     if(env == NULL){ printf("Unexpected empty environment\n"); return false; }
     
     VL_Object* fn_obj = VL_SymMap_find(env, head->data.symbol);   
-    if(fn_obj == NULL || fn_obj->type != VL_TYPE_RS_FUNCTION){ return false; } 
+    if(fn_obj == NULL || fn_obj->type != VL_TYPE_FUNCTION){ return false; } 
 
     VL_Function* fn = fn_obj->data.fn;                                  
     if(!fn->is_macro){ return false; }
@@ -707,7 +729,7 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                 obj_fn.data.arc = VL_ARCData_malloc();              \
                 obj_fn.data.arc->fn = fn;                           \
                 obj_fn.data.arc->fn.is_macro = IS_MACRO;            \
-                obj_fn.type = VL_TYPE_RS_FUNCTION;                  \
+                obj_fn.type = VL_TYPE_FUNCTION;                     \
                 stack_push(self, &obj_fn);                          \
             }                                                       \
             else{                                                   \
@@ -975,9 +997,10 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                     default: {
                         size_t args = VL_Core_num_args(self, fn_ptr);
             
-                        printf("Undefined keyword ");
-                        VL_Object_perror(VL_Core_stack_get(self, fn_ptr));
-                        
+                        VL_Object_perror(VL_Core_stack_get(self, fn_ptr));            
+                        printf(" is not defined in this context");
+                        printf("\n");
+
                         error(self, VL_Expr_get(expr, 0));
                         stack_dropn(self, args + 1);
                         stack_push_error(self, VL_ERROR_ARG_MISMATCH);       
@@ -991,7 +1014,7 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                 self->stack->len--;
                 break;
             }
-            case VL_TYPE_RS_FUNCTION: {
+            case VL_TYPE_FUNCTION: {
                 VL_Function* fn = &head->data.arc->fn;
 
                 if(fn->args->len + 1 == expr->len){ 

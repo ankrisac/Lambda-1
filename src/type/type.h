@@ -47,7 +47,7 @@ X(BOOL)         X(CHAR)         \
 X(INT)          X(FLOAT)        \
 X(STRING)       X(EXPR)         \
 X(RS_TUPLE)     X(RW_TUPLE)     \
-X(RS_FUNCTION)  X(RW_FUNCTION)  \
+X(FUNCTION)                     \
 X(RS_STRING)    X(RW_STRING)    \
 
 #define VL_TYPE_GET_ENUM(X) VL_TYPE_ ## X

@@ -1,30 +1,61 @@
 #include "eval_math.h"
 
-/*
+void add_prec(VL_SymMap* ptable, const char* symbol, int prec){
+    VL_Tuple desc;
+    VL_Tuple_init(&desc, 3);
+    VL_Tuple_append(&desc, &(VL_Object){ .type = VL_TYPE_INT, .data.v_int = prec });
+
+    VL_Object obj;
+    VL_Object_init(&obj, VL_TYPE_RS_TUPLE);
+    obj.data.arc = VL_ARCData_malloc();
+    obj.data.arc->tuple = desc;
+
+    VL_Str* str = VL_Str_from_cstr(symbol);
+    VL_SymMap_insert_cstr(ptable, str, VL_Str_hash(str), &obj);
+    VL_Str_delete(str);
+}
+
+VL_SymMap* init_ptable(){
+    VL_SymMap* ptable = VL_SymMap_new(NULL, 2);
+
+    size_t n = 1;
+
+    add_prec(ptable, ":=", n);
+    add_prec(ptable, "=", n);
+
+    add_prec(ptable, "&&", n);
+    add_prec(ptable, "||", n++);
+
+    add_prec(ptable, "==", n);
+    add_prec(ptable, "!=", n);
+    add_prec(ptable, "<", n);
+    add_prec(ptable, ">", n);
+    add_prec(ptable, "<=", n);
+    add_prec(ptable, ">=", n++);
+
+    add_prec(ptable, "+", n);
+    add_prec(ptable, "-", n++);
+
+    add_prec(ptable, "*", n);
+    add_prec(ptable, "/", n++);
+
+    add_prec(ptable, "$", n);
+
+    return ptable;
+}
+
 const size_t SYMBOL_PRECEDENCE = 0;
-size_t precedence(const VL_ExprAtom* atom){
-    #define R(PREC) return PREC;
-    #define C(ENUM) case VL_SYM_ ## ENUM:
+VL_Int prec(const VL_Core* self, const VL_ExprAtom* atom){
+    if(atom->val->type == VL_TYPE_SYMBOL){
+        VL_Object* obj = VL_SymMap_find(self->ptable, atom->val->data.symbol);
 
-    if(atom->val->type == VL_TYPE_KEYWORD){
-        switch(atom->val->data.keyword){
-            C(EQ)   C(NEQ)                  R(1)
-            C(OR)                           R(2)
-            C(AND)                          R(3)
-            C(LTE)  C(GTE)  C(LT)   C(GT)   R(4)
-            C(ADD)  C(SUB)                  R(5)
-            C(DIV)  C(MUL)                  R(6)
-            default:
-                printf(VLT_RED VLT_BOLD "Warning" VLT_RESET ": [");
-                VL_Keyword_print(atom->val->data.keyword);
-                printf("] Precedence not defined!\n");
-                return SYMBOL_PRECEDENCE;    
+        if(obj == NULL){
+            return SYMBOL_PRECEDENCE;
         }
-    }
-    return SYMBOL_PRECEDENCE;
 
-    #undef C
-    #undef R
+        return obj->data.tuple->data[0].data.v_int;
+    } 
+    return SYMBOL_PRECEDENCE;
 }
 
 void bundle(VL_Expr* end, VL_Expr* op_stack){
@@ -50,13 +81,14 @@ VL_Expr* infix(VL_Core* self, VL_Expr* expr){
     
     while(expr->len > 1){
         VL_ExprAtom* atom = VL_Expr_pop(expr);
-        size_t curr_prec = precedence(atom);
+        VL_Int curr_prec = prec(self, atom);
+
         if(curr_prec == SYMBOL_PRECEDENCE){
             VL_Expr_append(end, atom);
         }
         else{
             for(size_t top_prec; op_stack->len > 0 
-            && (top_prec = precedence(VL_Expr_rget(op_stack, 0))) > curr_prec; ){
+            && (top_prec = prec(self, VL_Expr_rget(op_stack, 0))) > curr_prec; ){
                 bundle(end, op_stack);
             }
             VL_Expr_append(op_stack, atom);
@@ -81,7 +113,5 @@ VL_Expr* infix(VL_Core* self, VL_Expr* expr){
 }
 
 VL_Expr* VL_Core_apply_infix(VL_Core* self, const VL_Expr* expr){
-    //printf("Infix!\n");
     return infix(self, VL_Expr_clone(expr));
 }
-*/

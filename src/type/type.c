@@ -75,7 +75,7 @@ void VL_Symbol_print(const VL_Symbol* self){
 }
 
 void VL_Object_perror(const VL_Object* self){
-    printf("[" VLT_RED VLT_BOLD);
+    printf("[");
     VL_Type_print(self->type);
     printf(VLT_RESET ":" VLT_RED VLT_BOLD);
     VL_Object_print(self);
