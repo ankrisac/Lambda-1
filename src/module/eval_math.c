@@ -40,6 +40,7 @@ VL_SymMap* init_ptable(){
     add_prec(ptable, "/", n++);
 
     add_prec(ptable, "$", n);
+    add_prec(ptable, ".", n++);
 
     return ptable;
 }

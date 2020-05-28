@@ -1,20 +1,10 @@
-#SET (:=) (#MACRO [var, val] 
-    (#QQ [#SET, #QU var, #QU val])
+#SET indirect_hello (#FN [fn] 
+    (fn 3)
 );
 
-#SET (+) #ADD; #SET (-) #SUB;
-#SET (*) #MUL; #SET (/) #DIV;
+#SET NL "\n";
 
-#SET (<) #LT; #SET (>) #GT;
-#SET (<=) #LTE; #SET (>=) #GTE;
-
-#SET (==) #EQ; #SET (!=) #NEQ;
-
-#SET (&&) #AND; #SET (||) #OR; 
-#SET not #NOT;
-
-#SET print #PRINT;
-#SET print #PRINT;
-
-x := 1 + 2 + 3;
-print x;
+#PRINT "TEST:\n";
+indirect_hello (#FN [name] 
+    (#PRINT name)
+);

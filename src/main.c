@@ -4,35 +4,28 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "module/module.h"
+#include "module/core.h"
 #include <time.h>
 
-
-void VIPER(const char* path_name){
-    VL_Core* viper = VL_Core_new();
-    
-    VL_Str* path = VL_Str_from_cstr(path_name);  
-
-    //VL_Core_repl(viper);
-    VL_Core_exec_file(viper, path);
-
-    VL_Str_delete(path);
-    VL_Core_delete(viper);
-}
-
-#define PERF(N, EXPR, MSG)                                      \
-{                                                               \
-    clock_t t1 = clock();                                       \
-    for(size_t i = 0; i < N; i++){                              \
-        EXPR                                                    \
-    }                                                           \
-    clock_t t2 = clock();                                       \
-    printf(MSG ": [%g]\n", (double)(t2 - t1)/CLOCKS_PER_SEC);   \
-}
-
 int main(int argc, char** argv){
-    VIPER("data/main.vl");
+    if(argc == 1){
+        VL_Core* viper = VL_Core_new();
+        VL_Core_repl(viper);
+        VL_Core_delete(viper);
+    }
+    else if(argc == 2){
+        VL_Core* viper = VL_Core_new();
+    
+        VL_Str* path = VL_Str_from_cstr(argv[1]);  
 
+        VL_Core_exec_file(viper, path);
+
+        VL_Str_delete(path);
+        VL_Core_delete(viper);
+    }
+    else{
+        printf(VLT_ERR("Error") ": expected only 0-1 files\n");
+    }
 
     return 0;
 }

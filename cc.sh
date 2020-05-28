@@ -19,22 +19,23 @@ debug: $(SRC) $(HDR)
 ' > Makefile
 
 clear
-echo "Arguments" $@ $@:
+OPTION=$1
+shift
 
-case $1 in
+case $OPTION in
     mem)
-        make lin && valgrind --leak-check=full --track-origins=yes ./.bin/main
+        make lin && valgrind --leak-check=full --track-origins=yes ./.bin/main "$@"
     ;;
     debug)
-        make debug && gdb ./.bin/main
+        make debug && gdb ./.bin/main "$@"
     ;;
     build)
-        make lin && ./.bin/main
+        make lin && ./.bin/main "$@"
     ;;
     run)
-        ./.bin/main
+        ./.bin/main "$@"
     ;;
     fast)
-        make lin_fast && ./.bin/main
+        make lin_fast && ./.bin/main "$@"
     ;;
 esac

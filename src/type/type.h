@@ -40,15 +40,15 @@ typedef enum {
     VL_ERROR_UNDEFINED
 }VL_Error;
 
-#define VL_TYPE_MAPPING(X)      \
-X(NONE)         X(ERROR)        \
-X(KEYWORD)      X(SYMBOL)       \
-X(BOOL)         X(CHAR)         \
-X(INT)          X(FLOAT)        \
-X(STRING)       X(EXPR)         \
-X(RS_TUPLE)     X(RW_TUPLE)     \
-X(FUNCTION)                     \
-X(RS_STRING)    X(RW_STRING)    \
+#define VL_TYPE_MAPPING(X)  \
+X(NONE)         X(ERROR)    \
+X(KEYWORD)      X(SYMBOL)   \
+X(BOOL)         X(CHAR)     \
+X(INT)          X(FLOAT)    \
+X(STRING)                   \
+X(RS_TUPLE)     X(RW_TUPLE) \
+X(RS_STRING)    X(RW_STRING)\
+X(EXPR)         X(FUNCTION) \
 
 #define VL_TYPE_GET_ENUM(X) VL_TYPE_ ## X
 #define VL_TYPE_GET_REPR(X) "." #X

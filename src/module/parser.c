@@ -249,34 +249,42 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
 
     switch(VL_Module_peek(self, state)){
         TOKEN_OPERATOR(C) {
-            if(VL_Module_parse_Operator(self, state)){
-                VL_Module_parse_Space(self, state);
-                if(!VL_Module_match_chr(self, state, ')')){
-                    VL_Module_push_err_str(self, begin, state,
-                        "Expected closing " VLT_ERR("parenthesis ')'") 
-                        " of " VLT_ERR("α-expr")
-                    );
-                    VL_Object_delete(state->val);
-                    return false;
-                }
-                return true;
+            if(!VL_Module_parse_Operator(self, state)){
+                return false;
             }
-            return false;
+            
+            VL_Module_parse_Space(self, state);
+            if(!VL_Module_match_chr(self, state, ')')){
+                VL_Module_push_err_str(self, begin, state,
+                    "Expected closing " VLT_ERR("parenthesis ')'") 
+                    " of " VLT_ERR("α-expr")
+                );
+                VL_Object_delete(state->val);
+                return false;
+            }
+
+            //VL_Expr* infix_quote = VL_Expr_new(2);
+            //VL_Expr_append_Object(infix_quote, VL_Object_wrap_keyword());
+            //state->val = VL_Object_wrap(infix_quote);
+
+            return true;
         }
         default:{
-            if(VL_Module_parse_IExpr(self, state)){
-                VL_Module_parse_Space(self, state);
-                if(!VL_Module_match_chr(self, state, ')')){
-                    VL_Module_push_err_str(self, begin, state,
-                        "Expected closing " VLT_ERR("parenthesis ')'") 
-                        " of " VLT_ERR("α-expr")
-                    );
-                    VL_Object_delete(state->val);
-                    return false;
-                }
-                return true;
+            if(!VL_Module_parse_IExpr(self, state)){
+                return false;
             }
-            return false;
+            
+            VL_Module_parse_Space(self, state);
+            if(!VL_Module_match_chr(self, state, ')')){
+                VL_Module_push_err_str(self, begin, state,
+                    "Expected closing " VLT_ERR("parenthesis ')'") 
+                    " of " VLT_ERR("α-expr")
+                );
+                VL_Object_delete(state->val);
+                return false;
+            }
+            return true;
+        
         }
     }
 
@@ -338,7 +346,6 @@ bool VL_Module_parse_FExpr(VL_Module* self, VL_ParseState* state){
     size_t i = 0;
     while(true){
         VL_Module_parse_Space(self, &temp);
-        //if(!VL_Module_parse_SpaceSep(self, &temp)){ break; }
         if(!VL_Module_parse_FAtom(self, &temp)){ break; }
 
         VL_Expr_append_Object(expr, temp.val, state->p, temp.p, self->id);
@@ -484,9 +491,6 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
                 "Expected " VLT_ERR("Atom")
             );
         }
-        else{
-
-        }
         return false;
     }
 
@@ -494,7 +498,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
     VL_Expr_append_Object(expr, state->val, begin.p, state->p, self->id);
     
     while(true){
-        if(!VL_Module_parse_SpaceSep(self, &temp)){ break; }
+        VL_Module_parse_Space(self, &temp); 
 
         p_err = self->error_stack->len; 
         if(!VL_Module_parse_Operator(self, &temp)){ 
@@ -506,14 +510,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
 
         *state = temp;
 
-        if(!VL_Module_parse_SpaceSep(self, &temp)){
-            VL_Expr_delete(expr);
-            VL_Module_push_err_str(self, &begin, state,
-                "Expected " VLT_ERR("space")
-                " after " VLT_ERR("operator")
-            );
-            return false;
-        }
+        VL_Module_parse_Space(self, &temp);
 
         if(!VL_Module_parse_FExpr(self, &temp)){ 
             VL_Expr_delete(expr);
@@ -539,6 +536,7 @@ bool VL_Module_parse_IExpr(VL_Module* self, VL_ParseState* state){
     return true;
 }
 void VL_Module_parse_NExpr(VL_Module* self, VL_ParseState* state){
+    size_t err_ptr = self->error_stack->len;
     VL_ParseState begin = *state;
     
     VL_Module_parse_Space(self, state);
@@ -552,6 +550,9 @@ void VL_Module_parse_NExpr(VL_Module* self, VL_ParseState* state){
             " of " VLT_ERR("η-expr")
         );
         VL_Object_delete(state->val);
+    }
+    else{
+        VL_Module_pop_errors(self, err_ptr, self->error_stack->len);
     }
 }
 VL_ParseState VL_Module_parse_Line(VL_Module* self, VL_ParseState state){

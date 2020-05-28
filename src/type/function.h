@@ -12,3 +12,4 @@ const VL_Symbol* VL_Function_getArg(const VL_Function* self, const size_t i);
 
 void VL_Function_print(const VL_Function* self);
 void VL_Function_repr(const VL_Function* self);
+void VL_Function_print_type(const VL_Function* self);

@@ -47,3 +47,7 @@ void VL_Function_repr(const VL_Function* self){
     printf(" ");
     VL_Object_repr(self->body);
 }
+void VL_Function_print_type(const VL_Function* self){
+    printf("fn ");
+    VL_Expr_print(self->args);
+}

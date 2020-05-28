@@ -12,8 +12,8 @@ bool VL_Module_parse_line(VL_Module* self, VL_Str* str){
 
     return true;
 }
-bool VL_Module_parse_file(VL_Module* self, const VL_Str* file_path){
-    if(self->source != NULL){
+bool VL_Module_parse_file(VL_Module* self, const VL_Str* file_path){    
+    if(self->source != NULL){    
         VL_ParseState in = { .ok = true, .p.pos = 0, .p.row = 0, .p.col = 0, .val = NULL };
         VL_ParseState out = VL_Module_parse_File(self, in);
         self->ast_tree = out.val;
@@ -70,12 +70,16 @@ VL_Module* VL_ModuleList_add_modulefile(VL_ModuleList* self, const VL_Str* file_
     }
 
     VL_Module* obj = VL_Module_from_file(file_path);
-    self->data[self->len] = *obj;
-    self->data[self->len].id = self->len;
-    free(obj);
-    self->len++;
     
-    return &self->data[self->len - 1];
+    if(obj != NULL){
+        self->data[self->len] = *obj;
+        self->data[self->len].id = self->len;
+        free(obj);
+        self->len++; 
+        return &self->data[self->len - 1];   
+    }
+
+    return NULL;
 }
 VL_Module* VL_ModuleList_get_module(VL_ModuleList* self, size_t id){
     return &self->data[id];

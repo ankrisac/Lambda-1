@@ -29,22 +29,16 @@ void VL_Module_delete(VL_Module* self){
 }
 
 VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_end, const char* highlight_color){
-    VL_Str* ln = VL_Str_from_cstr("Line[");
-
-    if(s_begin.row == s_end.row){   
-        VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
-        VL_Str_append_cstr(ln, "]");
-    }
-    else{
-        VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
-        VL_Str_append_cstr(ln, ":");
-        VL_Str_append_int(ln, (VL_Int)(s_begin.col + 1));
-        VL_Str_append_cstr(ln, "] -> Ln[");
-        VL_Str_append_int(ln, (VL_Int)(s_end.row + 1));
-        VL_Str_append_cstr(ln, ":");
-        VL_Str_append_int(ln, (VL_Int)(s_end.col + 1));
-        VL_Str_append_cstr(ln, "]");
-    } 
+    VL_Str* ln = VL_Str_from_cstr("Ln[");
+    
+    VL_Str_append_int(ln, (VL_Int)(s_begin.row + 1));
+    VL_Str_append_cstr(ln, ":");
+    VL_Str_append_int(ln, (VL_Int)(s_begin.col + 1));
+    VL_Str_append_cstr(ln, "] -> Ln[");
+    VL_Str_append_int(ln, (VL_Int)(s_end.row + 1));
+    VL_Str_append_cstr(ln, ":");
+    VL_Str_append_int(ln, (VL_Int)(s_end.col + 1));
+    VL_Str_append_cstr(ln, "]");
     
     VL_Str_append_cstr(ln, " of ");
     VL_Str_concat(ln, self->file_path);
@@ -58,18 +52,20 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
     
     size_t ln_begin = cursor_pos, pos = 0;
     char val = ' ';
-
+    
     if(cursor_pos < self->source->len){
 
         if(self->source->data[cursor_pos] == '\n'){
             ln_begin--;
         }
-        for(; ln_begin > 0; ln_begin--){
+
+        for(; 0 < ln_begin && ln_begin < self->source->len; ln_begin--){
             if(self->source->data[ln_begin] == '\n'){
                 ln_begin++;
                 break;
             }
         }
+
 
         pos = ln_begin;    
         for(;pos < s_begin.pos;){
@@ -84,7 +80,8 @@ VL_Str* VL_Module_get_ln(const VL_Module* self, VL_SrcPos s_begin, VL_SrcPos s_e
         }
         VL_Str_append_cstr(ln, VLT_RESET);
     }
-
+    
+    
     for(;pos < self->source->len; pos++){
         val = self->source->data[pos];
         VL_Str_append_char(ln, val);

@@ -43,7 +43,12 @@ VL_ExprAtom* VL_ExprAtom_wrap(VL_ExprAtom* self){
 void VL_ExprAtom_print(const VL_ExprAtom* self){
     VL_Object_repr(self->val);
 }
-
+void VL_ExprAtom_repr(const VL_ExprAtom* self){
+    VL_Object_repr(self->val);
+}
+void VL_ExprAtom_print_type(const VL_ExprAtom* self){
+    VL_Type_print(self->val->type);
+}
 
 void expr_allocate(VL_Expr* self, size_t len){
     len = (len != 0) ? len : 1;
@@ -172,8 +177,28 @@ void VL_Expr_print(const VL_Expr* self){
         }
     }
     printf(")");
-    #undef P
 }
 void VL_Expr_repr(const VL_Expr* self){
-    VL_Expr_print(self);
+    printf("(");
+    if(self->len >= 1){
+        VL_ExprAtom_repr(&self->data[0]);
+    
+        for(size_t i = 1; i < self->len; i++){
+            printf(" ");
+            VL_ExprAtom_repr(&self->data[i]);    
+        }
+    }
+    printf(")");
+}
+void VL_Expr_print_type(const VL_Expr* self){
+    printf("(");
+    if(self->len >= 1){
+        VL_ExprAtom_print_type(&self->data[0]);
+    
+        for(size_t i = 1; i < self->len; i++){
+            printf(" ");
+            VL_ExprAtom_print_type(&self->data[i]);    
+        }
+    }
+    printf(")");
 }
