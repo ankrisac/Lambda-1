@@ -1,0 +1,61 @@
+#SET (=) (#MACRO [var, val]
+    (`[#SET, ~ var, ~ val])
+);
+#SET (<-) (#MACRO [var, val]
+    (`[#SET, ~ var, ~ val])
+);
+
+#SET (+) #ADD; #SET (-) #SUB;
+#SET (*) #MUL; #SET (/) #DIV;
+
+#SET (<=) #LTE; #SET (<) #LT;
+#SET (>=) #GTE; #SET (>) #GT;
+#SET (==) #EQ; #SET (!=) #NEQ;
+
+macro = (#MACRO [name, args, body]
+    (`[#SET, ~ name, [#MACRO, ~ args, [#DO, ~ body]]])
+);
+
+macro (=>) [args, body] {
+    `[#FN, ~ args, [#DO, ~ body]];
+};
+macro ($) [f, g] { 
+    `[#QU f, #QU g]; 
+};
+macro fn [name, args, body] {
+    `[#SET, ~ name, [#FN, ~ args, [#DO, ~ body]]];
+};
+macro If [cond, body] {
+    `[#IF, ~ cond, [#DO, ~ body]];
+};
+macro if [cond, true_body, else, false_body] {
+    `[#IF, ~ cond, [#DO, ~ true_body], [#DO, ~ false_body]];
+};
+macro do [body] {
+    `[#DO, ~ body];
+};
+macro while [cond, body] {
+    `[#WHILE, ~ cond, [#DO, ~ body]];
+};
+
+print = #PRINT;
+input = #INPUT;
+int = #INT;
+type = #TYPE;
+
+list = #TUPLE;
+str = #STRING;
+
+NoneType = type None;
+Keyword = type #TYPE;
+Symbol = type $ ' sym;
+Expr = type [];
+
+Bool = type True;
+Int = type 0;
+Float = type 0.0;
+
+Char = type $ #CHAR "1";
+String = type "";
+
+#SET (:) #SEQGET;

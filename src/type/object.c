@@ -30,12 +30,12 @@ void VL_Object_clear(VL_Object* self){
                 break;                              \
         }
     
-    #define RW_CLEAR(DESTRUCT, TAG)                 \
-        if(self->data.arc->weak_ref_count > 0){     \
-            self->data.arc->weak_ref_count--;       \
-            if(self->data.arc->weak_ref_count == 0){\
-                R_DELETE(TAG)                       \
-            }                                       \
+    #define RW_CLEAR(DESTRUCT, TAG)             \
+        if(self->data.arc->weak_ref_count > 0){ \
+            self->data.arc->weak_ref_count--;   \
+            if(self->data.arc->ref_count == 0){ \
+                R_DELETE(TAG)                   \
+            }                                   \
         }
     
     #define C(ENUM, EXPR) case VL_TYPE_##ENUM: EXPR; break;
@@ -51,6 +51,7 @@ void VL_Object_clear(VL_Object* self){
         ND(BOOL)    ND(CHAR)
         ND(INT)     ND(FLOAT)
         ND(KEYWORD) ND(ERROR)
+        ND(TYPE)
 
         C(SYMBOL, VL_Symbol_delete(self->data.symbol))
         C(STRING, VL_Str_delete(self->data.str))
@@ -99,7 +100,9 @@ void VL_Object_copy(VL_Object* self, const VL_Object* src){
 
         D(BOOL, v_bool)     D(CHAR, v_char) 
         D(INT, v_int)       D(FLOAT, v_float)
-        D(KEYWORD, keyword) D(ERROR, err)
+
+        D(KEYWORD, keyword) D(TYPE, type)
+        D(ERROR, err)
 
         C(SYMBOL, self->data.symbol = VL_Symbol_clone(src->data.symbol))
         C(STRING, self->data.str = VL_Str_clone(src->data.str))
@@ -182,7 +185,10 @@ void VL_Object_print(const VL_Object* self){
     switch(self->type){
         C(KEYWORD, VL_Keyword_print(self->data.keyword))
         C(ERROR, VL_Error_print(self->data.err))
-
+        
+        C(TYPE, VL_Type_print(self->data.type))
+        C(SYMBOL, VL_Symbol_print(self->data.symbol)) 
+        
         C(NONE, printf("None")) 
         C(BOOL, printf((self->data.v_bool) ? "True" : "False"))
         
@@ -193,7 +199,6 @@ void VL_Object_print(const VL_Object* self){
         C(STRING, VL_Str_print(self->data.str)) 
         C(EXPR, VL_Expr_print(self->data.expr))
 
-        C(SYMBOL, VL_Symbol_print(self->data.symbol)) 
         
         R(STRING, str, VL_Str_print)
         R(TUPLE, tuple, VL_Tuple_print)
@@ -208,15 +213,17 @@ void VL_Object_print(const VL_Object* self){
 }
 void VL_Object_repr(const VL_Object* self){
     #define C(ENUM, EXPR) case VL_TYPE_ ## ENUM: EXPR; break;
-    
+
+    #define PARC printf("[%zu:%zu] ", self->data.arc->ref_count, self->data.arc->weak_ref_count);
+
     #define RS(TYPE_ENUM, TYPE_TAG, PRINT_FN)       \
         C(TYPE_ENUM,                                \
-            PRINT_FN(&self->data.arc->TYPE_TAG);)
+            PARC PRINT_FN(&self->data.arc->TYPE_TAG);)
     
     #define RW(TYPE_ENUM, TYPE_TAG, PRINT_FN)           \
         C(TYPE_ENUM,                                    \
             if(self->data.arc->ref_count > 0){          \
-                PRINT_FN(&self->data.arc->TYPE_TAG);})
+                PARC PRINT_FN(&self->data.arc->TYPE_TAG);})
 
     #define R(TYPE_ENUM, TYPE_TAG, PRINT_FN)    \
         RS(RS_##TYPE_ENUM, TYPE_TAG, PRINT_FN)  \
@@ -227,6 +234,7 @@ void VL_Object_repr(const VL_Object* self){
         C(ERROR, VL_Error_repr(self->data.err))
 
         C(SYMBOL, VL_Symbol_print(self->data.symbol))
+        C(TYPE, VL_Type_print(self->data.type))
 
         C(NONE, printf("None")) 
         C(BOOL, printf((self->data.v_bool) ? "True" : "False"))

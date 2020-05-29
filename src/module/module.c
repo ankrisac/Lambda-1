@@ -57,6 +57,15 @@ void VL_ModuleList_delete(VL_ModuleList* self){
     free(self->data);
     free(self);
 }
+bool VL_ModuleList_module_loaded(VL_ModuleList* self, const VL_Str* file_path){
+    for(size_t i = 0; i < self->len; i++){
+        if(VL_Str_cmp(file_path, self->data[i].file_path) == 0){
+            return true;        
+        }
+    }
+    return false;
+}
+
 VL_Module* VL_ModuleList_add_modulefile(VL_ModuleList* self, const VL_Str* file_path){
     for(size_t i = 0; i < self->len; i++){
         if(VL_Str_cmp(file_path, self->data[i].file_path) == 0){

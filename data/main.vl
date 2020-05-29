@@ -1,10 +1,15 @@
-#SET indirect_hello (#FN [fn] 
-    (fn 3)
-);
+#LOAD "data/core.vl";
 
-#SET NL "\n";
+fn closure [n] {
+    L <- list n;
+    print L;
 
-#PRINT "TEST:\n";
-indirect_hello (#FN [name] 
-    (#PRINT name)
-);
+    fn internal_fn [] {
+        print L;
+    };
+
+    internal_fn;
+};
+
+new_fn <- closure 2;
+[new_fn];

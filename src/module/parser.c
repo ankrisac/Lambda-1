@@ -1,19 +1,19 @@
 #include "parser.h"
 
-VL_SymMap* builtin_keywords = NULL;
+VL_Closure* builtin_keywords = NULL;
 
-void add_value(VL_SymMap* self, const char* name, VL_Object* val){
+void add_value(VL_Closure* self, const char* name, VL_Object* val){
     VL_Str* temp_str = VL_Str_from_cstr(name);
-    VL_SymMap_insert_cstr(self, temp_str, VL_Str_hash(temp_str), val);
+    VL_Closure_insert_cstr(self, temp_str, VL_Str_hash(temp_str), val);
     VL_Str_delete(temp_str);
 }
-void add_label(VL_SymMap* self, const char* name, VL_Keyword keyword){
+void add_label(VL_Closure* self, const char* name, VL_Keyword keyword){
     VL_Object obj;
     VL_Object_set_keyword(&obj, keyword);
     add_value(self, name, &obj);
 }
 void VL_Parser_init(){
-    builtin_keywords = VL_SymMap_new(NULL, 1);
+    builtin_keywords = VL_Closure_new(NULL, 1);
 
     #define CASE(KEYWORD) add_label(builtin_keywords, VL_KEYWORD_GET_REPR(KEYWORD), VL_KEYWORD_GET_ENUM(KEYWORD));
     VL_KEYWORD_MAPPING(CASE)
@@ -23,6 +23,12 @@ void VL_Parser_init(){
     add_label(builtin_keywords, "#QQ", VL_KEYWORD_QUASIQUOTE);
     add_label(builtin_keywords, "#QU", VL_KEYWORD_UNQUOTE);
     add_label(builtin_keywords, "#QS", VL_KEYWORD_UNQUOTESPLICE);
+
+    add_label(builtin_keywords, "'", VL_KEYWORD_QUOTE);
+    add_label(builtin_keywords, "`", VL_KEYWORD_QUASIQUOTE);
+    add_label(builtin_keywords, "~", VL_KEYWORD_UNQUOTE);
+    add_label(builtin_keywords, "~@", VL_KEYWORD_UNQUOTESPLICE);
+
 
     VL_Object temp;
 
@@ -37,7 +43,7 @@ void VL_Parser_init(){
     #undef ADD
 }
 void VL_Parser_quit(){
-    VL_SymMap_delete(builtin_keywords);
+    VL_Closure_delete(builtin_keywords);
     builtin_keywords = NULL;
 }
 
@@ -205,7 +211,7 @@ bool VL_Module_parse_Label(VL_Module* self, VL_ParseState* state){
         VL_Str_append_char(string, chr);
     }
 
-    VL_Object* sym = VL_SymMap_find_str(builtin_keywords, string);;
+    VL_Object* sym = VL_Closure_find_str(builtin_keywords, string);;
     
     if(sym == NULL){
         state->val = VL_Object_wrap_symbol(VL_Symbol_new(string));
@@ -263,12 +269,11 @@ bool VL_Module_parse_AExpr(VL_Module* self, VL_ParseState* begin, VL_ParseState*
                 return false;
             }
 
-            //VL_Expr* infix_quote = VL_Expr_new(2);
-            //VL_Expr_append_Object(infix_quote, VL_Object_wrap_keyword());
-            //state->val = VL_Object_wrap(infix_quote);
-
             return true;
         }
+        case ')':
+            state->val = VL_Object_wrap_expr(VL_Expr_new(0));
+            return true;
         default:{
             if(!VL_Module_parse_IExpr(self, state)){
                 return false;

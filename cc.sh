@@ -7,15 +7,15 @@ FLAGS := -Wall -Werror -pedantic
 
 PHONY: lin
 lin: $(SRC) $(HDR)
-\tgcc $(FLAGS) $(SRC) -o .bin/main
+\t@gcc $(FLAGS) $(SRC) -o .bin/main
 
 PNONY: lin_fast
 lin_fast: $(SRC) $(HDR)
-\tgcc -Ofast $(FLAGS) $(SRC) -o .bin/main 
+\t@gcc -Ofast $(FLAGS) $(SRC) -o .bin/main 
 
 PHONY: debug
 debug: $(SRC) $(HDR)
-\tgcc -g $(FLAGS) $(SRC) -o .bin/main
+\t@gcc -g $(FLAGS) $(SRC) -o .bin/main
 ' > Makefile
 
 clear

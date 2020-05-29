@@ -4,15 +4,18 @@ VL_Core* VL_Core_new(){
     VL_Core* self = malloc(sizeof* self);
     self->stack = VL_Tuple_new(100);
     self->modules = VL_ModuleList_new(1);
-    self->scope_global = VL_SymMap_new(NULL, 10);
+    
+    self->scope_global = VL_Closure_new(NULL, 10);
     self->ptable = init_ptable();
+    
     return self;
 }
 void VL_Core_delete(VL_Core* self){
     VL_Tuple_delete(self->stack);
     VL_ModuleList_delete(self->modules);
-    VL_SymMap_delete(self->scope_global);
-    VL_SymMap_delete(self->ptable);
+
+    VL_Closure_force_delete(self->scope_global);
+    VL_Closure_force_delete(self->ptable);
     free(self);
 }
 
@@ -90,16 +93,14 @@ void stack_debug(VL_Core* self){
     printf("\n");
 }
 
-void error_keyword(VL_Core* self, const VL_Expr* expr, size_t n, VL_Error error){
-    printf("\n");
-    trace(self, VL_Expr_get(expr, n));
-    stack_dropn(self, expr->len - 1);
+void error_push(VL_Core* self, size_t drop_args, VL_Error error){
+    stack_dropn(self, drop_args);
     stack_push_error(self, error);
 }
-void error_argcount(VL_Core* self, const VL_Expr* expr, VL_Keyword keyword, size_t expected_args, size_t actual_args){
+void error_argcount(VL_Core* self, VL_Keyword keyword, size_t expected_args, size_t actual_args){
     VL_Keyword_perror(keyword);        
     printf(" expected %zu argument(s) not %zu\n", expected_args, actual_args);                     
-    error_keyword(self, expr, 0, VL_ERROR_ARG_MISMATCH);                 
+    error_push(self, actual_args, VL_ERROR_ARG_MISMATCH);                 
 }
 
 #define CASE(TYPE_ENUM, EXPR) case TYPE_ENUM: { EXPR break; }
@@ -107,87 +108,34 @@ void error_argcount(VL_Core* self, const VL_Expr* expr, VL_Keyword keyword, size
 #define CKEYWORD(KEYWORD, EXPR) CASE(VL_KEYWORD_GET_ENUM(KEYWORD), EXPR)
 #define CDEFAULT(EXPR) default: { EXPR break; }
 
-#define DEF_FUNC(NAME) \
-    void fn_##NAME(VL_Core* self, VL_Expr* expr)
-
 #define FUNC_TYPECASE(TYPE_ENUM, EXPR)              \
     case VL_TYPE_GET_ENUM(TYPE_ENUM): { EXPR return; }
 
+#define DEF_FUNC(NAME) \
+    void fn_##NAME(VL_Core* self)
 
-void error_keyword_unary(VL_Core* self, const VL_Expr* expr, VL_Keyword keyword, VL_Object* val){
-    VL_Keyword_perror(keyword);                     
-    
-    printf(" not defined on ");
-    VL_Type_print(val->type);
-    printf(":");
-    VL_Object_perror(val);                          
-    
-    error_keyword(self, expr, 1, VL_ERROR_TYPE_ERROR);
-}
-
-#define UNARY_FUNC(NAME, KEYWORD, CASES)                        \
-    DEF_FUNC(NAME){                                             \
-        VL_Object* val = stack_rget(self, 0);                   \
-        switch(val->type){                                      \
-            CASES                                               \
-            default:                                            \
-                error_keyword_unary(self, expr, KEYWORD, val);  \
-                break;                                          \
-        }                                                       \
-    }
-
-void error_keyword_binary(VL_Core* self, const VL_Expr* expr, VL_Keyword keyword, VL_Object* lhs, VL_Object* rhs){
-    VL_Keyword_perror(keyword);
-
-    printf(" not defined on ");
-    VL_Object_perror(lhs);
-    printf(",");
-    VL_Object_perror(rhs);
-
-    error_keyword(self, expr, 0, VL_ERROR_TYPE_ERROR);
-}
-#define BINARY_FUNC(NAME, KEYWORD, CASES)               \
-    DEF_FUNC(NAME){                                     \
-        VL_Object* lhs = stack_rget(self, 1);           \
-        VL_Object* rhs = stack_rget(self, 0);           \
-        if(lhs->type == rhs->type){                     \
-            switch(lhs->type){                          \
-                CASES                                   \
-                default:                                \
-                    error_keyword_binary(self,          \
-                        expr, KEYWORD, lhs, rhs);       \
-                    break;                              \
-            }                                           \
-        }                                               \
-        else{                                           \
-            error_keyword_binary(self,                  \
-                expr, KEYWORD, lhs, rhs);               \
-        }                                               \
-    }
-            
-#define BINARY_CASE_NUM(TYPE_ENUM, TYPE_TAG, OP)    \
-    FUNC_TYPECASE(TYPE_ENUM,                        \
-        lhs->data.TYPE_TAG OP rhs->data.TYPE_TAG;   \
-        rhs->type = VL_TYPE_NONE;                   \
-        self->stack->len--;                         \
-    )
-
-DEF_FUNC(input){
+void fn_input(VL_Core* self){
     stack_push(self,
         &(VL_Object){ 
             .type = VL_TYPE_STRING, .data.str = VL_Str_from_cin() 
         }
     );
 }
-DEF_FUNC(time){
+void fn_time(VL_Core* self){
     stack_push(self, 
         &(VL_Object){ 
             .type = VL_TYPE_FLOAT, .data.v_float = clock()/CLOCKS_PER_SEC 
         }
     );
 }
-    
-DEF_FUNC(seqget){
+void fn_type(VL_Core* self){
+    VL_Object* val = stack_rget(self, 0);
+    VL_Type type = val->type;
+    VL_Object_clear(val);
+    val->type = VL_TYPE_TYPE;
+    val->data.type = type;
+}
+void fn_seqget(VL_Core* self){
     VL_Object* index = stack_rget(self, 0);
     VL_Object* seq = stack_rget(self, 1);
 
@@ -195,53 +143,71 @@ DEF_FUNC(seqget){
         VL_Int i = index->data.v_int;
 
         switch(seq->type){
-            case VL_TYPE_RS_STRING: {
-                VL_Str* str = &seq->data.arc->str;
-                if(0 <= i && i < str->len){
-                    char chr = str->data[i];
-                    stack_dropn(self, 2);
-                    stack_push(self, 
-                        &(VL_Object){ .data.v_char = chr, .type = VL_TYPE_CHAR }
-                    );
-                }
-                else if(-str->len <= i){
-                    char chr = str->data[str->len + i];
-                    stack_dropn(self, 2);
-                    stack_push(self, 
-                        &(VL_Object){ .data.v_char = chr, .type = VL_TYPE_CHAR }
-                    );
+            case VL_TYPE_RW_STRING:
+            case VL_TYPE_RS_STRING: {                
+                if(seq->data.arc->ref_count > 0){
+                    VL_Str* str = &seq->data.arc->str;
+                
+                    if(0 <= i && i < str->len){
+                        char chr = str->data[i];
+                        stack_dropn(self, 2);
+                        stack_push(self, 
+                            &(VL_Object){ .data.v_char = chr, .type = VL_TYPE_CHAR }
+                        );
+                    }
+                    else if(-str->len <= i){
+                        char chr = str->data[str->len + i];
+                        stack_dropn(self, 2);
+                        stack_push(self, 
+                            &(VL_Object){ .data.v_char = chr, .type = VL_TYPE_CHAR }
+                        );
+                    }
+                    else{
+                        VL_Keyword_perror(VL_KEYWORD_SEQGET);
+                        printf(" index [%lli] out of range [%zu]\n", i, str->len);
+                        error_push(self, 2, VL_ERROR_UNDEFINED);
+                    }
                 }
                 else{
                     VL_Keyword_perror(VL_KEYWORD_SEQGET);
-                    printf(" index [%lli] out of range [%zu]", i, str->len);
-                    error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
+                    printf(" not defined on ");
+                    VL_Object_perror(seq);
+                    printf("\n");
+
+                    error_push(self, 2, VL_ERROR_UNDEFINED);    
                 }
                 break;
             }
+            case VL_TYPE_RW_TUPLE:
             case VL_TYPE_RS_TUPLE: {
-                VL_Tuple* tuple = &seq->data.arc->tuple;
-                if(0 <= i && i < tuple->len){
-                    VL_Object* elem = &tuple->data[i];
-                    stack_dropn(self, 2);
-                    stack_push_copy(self, elem);
+                if(seq->data.arc->ref_count > 0){
+                    VL_Tuple* tuple = &seq->data.arc->tuple;
+
+                    if(0 <= i && i < tuple->len){
+                        VL_Object* elem = &tuple->data[i];
+                        stack_dropn(self, 2);
+                        stack_push_copy(self, elem);
+                    }
+                    else if(-tuple->len <= i){
+                        VL_Object* elem = &tuple->data[tuple->len + i];
+                        stack_dropn(self, 2);
+                        stack_push_copy(self, elem);
+                    }
+                    else{
+                        VL_Keyword_perror(VL_KEYWORD_SEQGET);
+                        printf(" index [%lli] out of range [%zu]\n", i, tuple->len);
+                        error_push(self, 2, VL_ERROR_UNDEFINED);
+                    }    
                 }
-                else if(-tuple->len <= i){
-                    VL_Object* elem = &tuple->data[tuple->len + i];
-                    stack_dropn(self, 2);
-                    stack_push_copy(self, elem);
-                }
-                else{
-                    VL_Keyword_perror(VL_KEYWORD_SEQGET);
-                    printf(" index [%lli] out of range [%zu]", i, tuple->len);
-                    error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
-                }
+                break;
             }
             default:
                 VL_Keyword_perror(VL_KEYWORD_SEQGET);
                 printf(" not defined on ");
                 VL_Object_perror(seq);
-                
-                error_keyword(self, expr, 1, VL_ERROR_UNDEFINED);
+                printf("\n");
+
+                error_push(self, 2, VL_ERROR_UNDEFINED);
                 break;
         }
     }
@@ -249,10 +215,10 @@ DEF_FUNC(seqget){
         VL_Keyword_perror(VL_KEYWORD_SEQGET);
         printf(" index must be an integer, not ");
         VL_Object_perror(index);
-        error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
+        error_push(self, 2, VL_ERROR_UNDEFINED);
     }
 }
-DEF_FUNC(seqset){
+void fn_seqset(VL_Core* self){
     VL_Object* val = stack_rget(self, 0);
     VL_Object* index = stack_rget(self, 1);
     VL_Object* seq = stack_rget(self, 2);
@@ -261,48 +227,58 @@ DEF_FUNC(seqset){
         VL_Int i = index->data.v_int;
 
         switch(seq->type){
+            case VL_TYPE_RW_STRING:
             case VL_TYPE_RS_STRING: {
-                VL_Str* str = &seq->data.arc->str;
-                if(i < str->len){
-                    if(val->type == VL_TYPE_CHAR){
-                        str->data[i] = val->data.v_char;
-                        stack_dropn(self, 3);
+                if(seq->data.arc->ref_count > 0){
+                    VL_Str* str = &seq->data.arc->str;
+                    
+                    if(i < str->len){
+                        if(val->type == VL_TYPE_CHAR){
+                            str->data[i] = val->data.v_char;
+                            stack_dropn(self, 3);
+                            stack_push_none(self);
+                        }
+                        else{
+                            VL_Keyword_perror(VL_KEYWORD_SEQGET);
+                            printf(" value must be ");
+                            VL_Type_perror(VL_TYPE_CHAR);
+                            printf(", not ");
+                            VL_Object_perror(val);
+                            printf("\n");
+
+                            error_push(self, 3, VL_ERROR_TYPE_ERROR);
+                        }
+                    }
+                    else{
+                        VL_Keyword_perror(VL_KEYWORD_SEQGET);
+                        printf(" index [%lli] out of range [%zu]\n", i, str->len);
+                        error_push(self, 3, VL_ERROR_UNDEFINED);
+                    }
+                }
+                break;
+            }
+            case VL_TYPE_RW_TUPLE:
+            case VL_TYPE_RS_TUPLE: {
+                if(seq->data.arc->ref_count > 0){
+                    VL_Tuple* tuple = &seq->data.arc->tuple;
+                
+                    if(0 <= i && i < tuple->len){
+                        tuple->data[i] = *val;
+                        self->stack->len -= 2;
+                        stack_drop(self);
+                        stack_push_none(self);
+                    }
+                    else if(-tuple->len <= i){
+                        tuple->data[tuple->len + i] = *val;
+                        self->stack->len -= 2;
+                        stack_drop(self);
                         stack_push_none(self);
                     }
                     else{
                         VL_Keyword_perror(VL_KEYWORD_SEQGET);
-                        printf(" value must be ");
-                        VL_Type_perror(VL_TYPE_CHAR);
-                        printf(", not ");
-                        VL_Object_perror(val);
-                        error_keyword(self, expr, 3, VL_ERROR_TYPE_ERROR);
+                        printf(" index [%lli] out of range [%zu]\n", i, tuple->len);
+                        error_push(self, 3, VL_ERROR_UNDEFINED);
                     }
-                }
-                else{
-                    VL_Keyword_perror(VL_KEYWORD_SEQGET);
-                    printf(" index [%lli] out of range [%zu]", i, str->len);
-                    error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
-                }
-                break;
-            }
-            case VL_TYPE_RS_TUPLE: {
-                VL_Tuple* tuple = &seq->data.arc->tuple;
-                if(0 <= i && i < tuple->len){
-                    tuple->data[i] = *val;
-                    self->stack->len -= 2;
-                    stack_drop(self);
-                    stack_push_none(self);
-                }
-                else if(-tuple->len <= i){
-                    tuple->data[tuple->len + i] = *val;
-                    self->stack->len -= 2;
-                    stack_drop(self);
-                    stack_push_none(self);
-                }
-                else{
-                    VL_Keyword_perror(VL_KEYWORD_SEQGET);
-                    printf(" index [%lli] out of range [%zu]", i, tuple->len);
-                    error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
                 }
                 break;
             }
@@ -310,7 +286,9 @@ DEF_FUNC(seqset){
                 VL_Keyword_perror(VL_KEYWORD_SEQGET);
                 printf(" not defined for ");
                 VL_Type_perror(seq->type);
-                error_keyword(self, expr, 1, VL_ERROR_TYPE_ERROR);
+                printf("\n");
+
+                error_push(self, 3, VL_ERROR_TYPE_ERROR);
                 break;
         }
     }
@@ -318,35 +296,97 @@ DEF_FUNC(seqset){
         VL_Keyword_perror(VL_KEYWORD_SEQGET);
         printf(" index must be an integer, not ");
         VL_Object_perror(index);
-        error_keyword(self, expr, 2, VL_ERROR_TYPE_ERROR);
+        error_push(self, 3, VL_ERROR_TYPE_ERROR);
     }
 }
 
+void error_keyword_unary(VL_Core* self, VL_Keyword keyword, VL_Object* val){
+    VL_Keyword_perror(keyword);                     
+    
+    printf(" not defined on ");
+    VL_Type_print(val->type);
+    printf(":");
+    VL_Object_perror(val);                          
+    printf("\n");
+
+    error_push(self, 1, VL_ERROR_TYPE_ERROR);
+}
+
+#define UNARY_FUNC(NAME, KEYWORD, CASES)                \
+    DEF_FUNC(NAME){                                     \
+        VL_Object* val = stack_rget(self, 0);           \
+        switch(val->type){                              \
+            CASES                                       \
+            default:                                    \
+                error_keyword_unary(self, KEYWORD, val);\
+                break;                                  \
+        }                                               \
+    }
+
+UNARY_FUNC(load, VL_KEYWORD_LOAD,
+    FUNC_TYPECASE(STRING,
+        VL_Str* file_path = val->data.str;
+
+        if(!VL_ModuleList_module_loaded(self->modules, file_path)){
+            VL_Module* main = VL_ModuleList_add_modulefile(self->modules, file_path);    
+            if(main != NULL){
+                if(VL_Module_parse_file(main, main->file_path)){
+                    size_t module_ptr = self->stack->len;
+                    VL_Core_eval_obj(self, self->scope_global, main->ast_tree);
+
+                    if(self->stack->len >= module_ptr){
+                        stack_dropn(self, self->stack->len - module_ptr);
+                    }
+                }
+                stack_drop(self);
+                stack_push_none(self);
+            }
+            else{
+                printf(VLT_ERR("Error") ": invalid file path '" VLT_RED VLT_BOLD);
+                VL_Str_print(file_path);
+                printf(VLT_RESET "'\n");
+            
+                stack_drop(self);
+                stack_push_error(self, VL_ERROR_UNDEFINED);
+            }
+        }
+        else{
+            stack_drop(self);
+            stack_push_none(self);
+        }
+    )
+)
+
 UNARY_FUNC(seqlen, VL_KEYWORD_SEQLEN, 
-    case VL_TYPE_STRING: {
+    FUNC_TYPECASE(STRING,
         size_t len = val->data.str->len;
         stack_drop(self);
         stack_push_int(self, len);
-        break;
-    } 
+    )
+    case VL_TYPE_RW_STRING: 
     case VL_TYPE_RS_STRING: { 
         size_t len = val->data.arc->str.len;
         stack_drop(self);
         stack_push_int(self, len);
         break; 
     }
+    case VL_TYPE_RW_TUPLE:
     case VL_TYPE_RS_TUPLE: { 
         size_t len = val->data.arc->tuple.len;
         stack_drop(self);
         stack_push_int(self, len);
         break;
     }
-    case VL_TYPE_EXPR: { 
+    FUNC_TYPECASE(EXPR,
         size_t len = val->data.expr->len;
         stack_drop(self);
         stack_push_int(self, len);
-        break;
-    }
+    )
+    FUNC_TYPECASE(FUNCTION, 
+        size_t len = val->data.fn->args->len;
+        stack_drop(self);
+        stack_push_int(self, len);
+    )
 )
 
 UNARY_FUNC(not, VL_KEYWORD_NOT, 
@@ -364,6 +404,9 @@ UNARY_FUNC(char, VL_KEYWORD_CHAR,
             val->type = VL_TYPE_CHAR;
         }
         else{
+            VL_Keyword_perror(VL_KEYWORD_CHAR);
+            printf("String must be made of a single char\n");
+                    
             stack_drop(self);
             stack_push_error(self, VL_ERROR_TYPE_ERROR);
         }
@@ -401,14 +444,52 @@ UNARY_FUNC(string, VL_KEYWORD_STRING,
     )
 )
 
+void error_keyword_binary(VL_Core* self, VL_Keyword keyword, VL_Object* lhs, VL_Object* rhs){
+    VL_Keyword_perror(keyword);
+
+    printf(" not defined on ");
+    VL_Object_perror(lhs);
+    printf(",");
+    VL_Object_perror(rhs);
+    printf("\n");
+
+    error_push(self, 2, VL_ERROR_TYPE_ERROR);
+}
+
+#define BINARY_FUNC(NAME, KEYWORD, CASES)       \
+    DEF_FUNC(NAME){                             \
+        VL_Object* lhs = stack_rget(self, 1);   \
+        VL_Object* rhs = stack_rget(self, 0);   \
+        if(lhs->type == rhs->type){             \
+            switch(lhs->type){                  \
+                CASES                           \
+                default:                        \
+                    error_keyword_binary(self,  \
+                        KEYWORD, lhs, rhs);     \
+                    break;                      \
+            }                                   \
+        }                                       \
+        else{                                   \
+            error_keyword_binary(self,          \
+                KEYWORD, lhs, rhs);             \
+        }                                       \
+    }
+            
+#define BINARY_CASE_NUM(TYPE_ENUM, TYPE_TAG, OP)    \
+    FUNC_TYPECASE(TYPE_ENUM,                        \
+        lhs->data.TYPE_TAG OP rhs->data.TYPE_TAG;   \
+        rhs->type = VL_TYPE_NONE;                   \
+        self->stack->len--;                         \
+    )
+
 #define DEF(NAME, KEYWORD, OP)                      \
     BINARY_FUNC(NAME, VL_KEYWORD_GET_ENUM(KEYWORD), \
         BINARY_CASE_NUM(INT, v_int, OP)             \
         BINARY_CASE_NUM(FLOAT, v_float, OP)         \
     )
+
 DEF(mul, MUL, *=)
 #undef DEF
-
 
 BINARY_FUNC(div, VL_KEYWORD_DIV, 
     BINARY_CASE_NUM(FLOAT, v_float, /=)
@@ -426,7 +507,7 @@ BINARY_FUNC(div, VL_KEYWORD_DIV,
             printf("/");
             VL_Object_perror(rhs);
             printf(" division by zero");
-            error_keyword(self, expr, 2, VL_ERROR_UNDEFINED);
+            error_push(self, 2, VL_ERROR_UNDEFINED);
         }
     )
 )
@@ -435,12 +516,12 @@ BINARY_FUNC(div, VL_KEYWORD_DIV,
     BINARY_FUNC(NAME, VL_KEYWORD_GET_ENUM(KEYWORD), \
         BINARY_CASE_NUM(BOOL, v_bool, OP)           \
     )
+    
 DEF(and, AND, &=)
 DEF(or, OR, |=)
 #undef DEF
 
 #undef CASE_NUM
-
 
 #define CMP_NUM(TYPE_ENUM, TYPE_TAG, OP)                                \
     FUNC_TYPECASE(TYPE_ENUM,                                            \
@@ -449,12 +530,15 @@ DEF(or, OR, |=)
         self->stack->len--;                                             \
     )        
 
-#define CMP_STR(OP)                                                 \
-    FUNC_TYPECASE(STRING,                                           \
-        bool ok = (VL_Str_cmp(lhs->data.str, rhs->data.str) OP 0);  \
+#define CMP_FN(TYPE_ENUM, FN, OP, TYPE_TAG)                         \
+    FUNC_TYPECASE(TYPE_ENUM,                                        \
+        bool ok = (FN(lhs->data.TYPE_TAG, rhs->data.TYPE_TAG) OP 0);\
         stack_dropn(self, 2);                                       \
         stack_push_bool(self, ok);                                  \
     )
+
+#define CMP_STR(OP) CMP_FN(STRING, VL_Str_cmp, OP, str)
+#define CMP_SYM(OP) CMP_FN(SYMBOL, VL_Str_cmp, OP, symbol->label)
 
 #define DEF(NAME, KEYWORD, OP)                      \
     BINARY_FUNC(NAME, VL_KEYWORD_GET_ENUM(KEYWORD), \
@@ -467,49 +551,56 @@ DEF(lt,     LT,     <)
 DEF(lte,    LTE,    <=)
 DEF(gt,     GT,     >)
 DEF(gte,    GTE,    >=)
-#undef DEF
+#undef DEF                 
+                
+#define DEF(NAME, OP)                               \
+    DEF_FUNC(NAME){                                 \
+        VL_Object* lhs = stack_rget(self, 1);       \
+        VL_Object* rhs = stack_rget(self, 0);       \
+        if(lhs->type == rhs->type){                 \
+            switch(lhs->type){                      \
+                case VL_TYPE_NONE:                  \
+                    lhs->data.v_bool = (0 OP 0);    \
+                    lhs->type = VL_TYPE_BOOL;       \
+                    self->stack->len--;             \
+                    break;                          \
+                CMP_NUM(BOOL, v_bool, OP)           \
+                CMP_NUM(INT, v_int, OP)             \
+                CMP_NUM(FLOAT, v_float, OP)         \
+                CMP_STR(OP)                         \
+                CMP_SYM(OP)                         \
+                CMP_NUM(TYPE, type, OP)             \
+                CMP_NUM(KEYWORD, keyword, OP)       \
+                default:                            \
+                    stack_dropn(self, 2);           \
+                    stack_push_bool(self, false);   \
+                    break;                          \
+            }                                       \
+        }                                           \
+        else{                                       \
+            stack_dropn(self, 2);                   \
+            stack_push_bool(self, false);           \
+        }                                           \
+    }                                               \
 
-#define DEF(NAME, KEYWORD, OP)                          \
-    DEF_FUNC(NAME){                                     \
-        VL_Object* lhs = stack_rget(self, 1);           \
-        VL_Object* rhs = stack_rget(self, 0);           \
-        if(lhs->type == rhs->type){                     \
-            switch(lhs->type){                          \
-                case VL_TYPE_NONE:                      \
-                    lhs->data.v_bool = (0 OP 0);        \
-                    lhs->type = VL_TYPE_BOOL;           \
-                    self->stack->len--;                 \
-                    break;                              \
-                CMP_NUM(BOOL, v_bool, OP)               \
-                CMP_NUM(INT, v_int, OP)                 \
-                CMP_NUM(FLOAT, v_float, OP)             \
-                CMP_STR(OP)                             \
-                default:                                \
-                    stack_dropn(self, 2);               \
-                    stack_push_bool(self, false);       \
-                    break;                              \
-            }                                           \
-        }                                               \
-        else{                                           \
-            stack_dropn(self, 2);                       \
-            stack_push_bool(self, false);               \
-        }                                               \
-    }
-
-DEF(eq, EQ, ==)
-DEF(neq, NEQ, !=)
+DEF(eq, ==)
+DEF(neq, !=)
 #undef DEF
 #undef CMP_NUM
 #undef CMP_STR
+#undef CMP_SYM
 
-void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* obj);
-void VL_Core_eval(VL_Core* self, VL_SymMap* env);
+void VL_Core_eval_obj(VL_Core* self, VL_Closure* env, VL_Object* obj);
+void VL_Core_eval(VL_Core* self, VL_Closure* env);
 
-bool VL_Core_eval_symbol(VL_Core* self, VL_SymMap* env, const VL_Symbol* sym){
-    VL_Object* val = VL_SymMap_find(env, sym);
+bool VL_Core_eval_symbol(VL_Core* self, VL_Closure* env, const VL_Symbol* sym){
+    VL_Object* val = VL_Closure_find(env, sym);
     
     if(val != NULL){
         switch(val->type){
+            case VL_TYPE_RS_STRING:
+                val->type = VL_TYPE_RW_STRING;
+                break;
             case VL_TYPE_RS_TUPLE:
                 val->type = VL_TYPE_RW_TUPLE;
                 break;
@@ -531,9 +622,9 @@ size_t VL_Core_num_args(const VL_Core* self, size_t fn_ptr){
     return 0;
 }
 
-bool macro_expand(VL_Core* self, VL_SymMap* env, VL_Object* ast){
+bool macro_expand(VL_Core* self, VL_Closure* env, VL_Object* ast){
     if(ast->type != VL_TYPE_EXPR){ return false; }                             
-
+    
     VL_Expr* expr = ast->data.expr;                                     
     if(expr->len == 0){ return false; }                                        
 
@@ -558,7 +649,7 @@ bool macro_expand(VL_Core* self, VL_SymMap* env, VL_Object* ast){
 
     if(env == NULL){ printf("Unexpected empty environment\n"); return false; }
     
-    VL_Object* fn_obj = VL_SymMap_find(env, head->data.symbol);   
+    VL_Object* fn_obj = VL_Closure_find(env, head->data.symbol);   
     if(fn_obj == NULL){ return false; }
     
     switch(fn_obj->type){
@@ -588,34 +679,35 @@ bool macro_expand(VL_Core* self, VL_SymMap* env, VL_Object* ast){
         return false;                                                         
     }                 
 
-    VL_SymMap* new_env = VL_SymMap_new(env, 4);                         
+    VL_Closure* new_env = VL_Closure_new(fn->env, 4);                         
     VL_Object temp;                                                     
     
     for(size_t i = 0; i + 1 < expr->len; i++){                          
         VL_Object_copy(&temp, VL_Expr_get(expr, i + 1)->val);   
-        VL_SymMap_insert(new_env, VL_Function_getArg(fn, i), &temp);    
+        VL_Closure_insert(new_env, VL_Function_getArg(fn, i), &temp);    
     }                                                              
     
-    VL_Core_eval_obj(self, new_env, fn->body);                          
+    VL_Object new_body = *fn->body;
+    VL_Core_eval_obj(self, new_env, &new_body);                          
+    VL_Closure_delete(new_env);
+    
     VL_Object_clear(ast);                                               
     *ast = *stack_rget(self, 0);                                
     self->stack->len--;                                                 
     
-    VL_SymMap_delete(new_env);
-
     return true;
 }
 
-void VL_Core_macro_expandn(VL_Core* self, VL_SymMap* env, VL_Object* ast, size_t n){
+void VL_Core_macro_expandn(VL_Core* self, VL_Closure* env, VL_Object* ast, size_t n){
     for(size_t i = 0; i < n; i++){
         macro_expand(self, env, ast);
     }
 }
-void VL_Core_macro_expand(VL_Core* self, VL_SymMap* env, VL_Object* ast){
+void VL_Core_macro_expand(VL_Core* self, VL_Closure* env, VL_Object* ast){
     while(macro_expand(self, env, ast));                                         
 }
 
-VL_Expr* VL_Core_eval_quasiquote(VL_Core* self, VL_SymMap* env, const VL_Expr* expr){
+VL_Expr* VL_Core_eval_quasiquote(VL_Core* self, VL_Closure* env, const VL_Expr* expr){
     #define DEFER(CONDITION)                \
         if(CONDITION){                      \
             VL_Expr_append_Object(out,      \
@@ -624,6 +716,7 @@ VL_Expr* VL_Core_eval_quasiquote(VL_Core* self, VL_SymMap* env, const VL_Expr* e
                 atom->module_id);           \
             continue;                       \
         }
+
     VL_Expr* out = VL_Expr_new(expr->len);
 
     for(size_t i = 0; i < expr->len; i++){
@@ -696,7 +789,7 @@ VL_Expr* VL_Core_eval_quasiquote(VL_Core* self, VL_SymMap* env, const VL_Expr* e
 #include <assert.h>
 
 
-VL_Object* VL_Core_eval_do(VL_Core* self, VL_SymMap* env, const VL_Object* obj){
+VL_Object* VL_Core_eval_do(VL_Core* self, VL_Closure* env, const VL_Object* obj){
     switch(obj->type){                                              
         case VL_TYPE_EXPR: { 
             const VL_Expr* expr = obj->data.expr; 
@@ -706,6 +799,7 @@ VL_Object* VL_Core_eval_do(VL_Core* self, VL_SymMap* env, const VL_Object* obj){
                     VL_Core_eval_obj(self, env, VL_Expr_get(expr, i)->val);
                     
                     if(stack_rget(self, 0)->type == VL_TYPE_ERROR){
+                        trace(self, VL_Expr_get(expr, i));
                         return NULL;
                     }
                     stack_drop(self);
@@ -731,13 +825,15 @@ VL_Object* VL_Core_eval_do(VL_Core* self, VL_SymMap* env, const VL_Object* obj){
     return NULL;
 }
 
-const size_t stack_limit = 20;
-
-VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
-    #define KEYWORD_ERROR(KEYWORD, N, MSG)                  \
-        VL_Keyword_perror(VL_KEYWORD_GET_ENUM(KEYWORD));    \
-        printf(MSG);                                        \
-        error(self, VL_Expr_get(expr, N));                  \
+/* 
+    NOTE: input AST pointer is modified, 
+    return value determines execution pattern of AST  
+*/
+VL_Object* eval_ast(VL_Core* self, VL_Closure* env, VL_Object* ast){
+    #define KEYWORD_ERROR(KEYWORD, N, MSG)              \
+        VL_Keyword_perror(VL_KEYWORD_GET_ENUM(KEYWORD));\
+        printf(MSG);                                    \
+        error_expr(self, expr);                         \
         stack_push_error(self, VL_ERROR_TYPE_ERROR);    
 
     #define SPECIAL_FORM(KEYWORD, N, EXPR)                      \
@@ -761,7 +857,7 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
             VL_Object* obj_arg = VL_Expr_get(expr, 1)->val;         \
             if(obj_arg->type == VL_TYPE_EXPR){                      \
                 VL_Function fn;                                     \
-                VL_Function_init(&fn, env,                          \
+                VL_Function_init(&fn, VL_Closure_share(env),        \
                     VL_Expr_clone(obj_arg->data.expr),              \
                     VL_Object_clone(VL_Expr_get(expr, 2)->val));    \
                 VL_Object obj_fn;                                   \
@@ -774,7 +870,7 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
             else{                                                   \
                 VL_Keyword_perror(VL_KEYWORD_GET_ENUM(KEYWORD));    \
                 printf(" first argument must be argument list!\n"); \
-                error(self, VL_Expr_get(expr, 1));                  \
+                error_expr(self, expr);                             \
                 stack_push_error(self, VL_ERROR_TYPE_ERROR);        \
             }                                                       \
             return NULL;                                            \
@@ -789,7 +885,7 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
             printf(" requires argument to be ");                        \
             VL_Type_perror(VL_TYPE_GET_ENUM(TYPE_ENUM));                \
             printf("\n");                                               \
-            trace(self, VL_Expr_get(expr, N));                          \
+            error_expr(self, expr);                                     \
             stack_push_error(self, VL_ERROR_TYPE_ERROR);                \
             return NULL;                                                \
         }
@@ -807,6 +903,11 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
         switch(ast->type){
             case VL_TYPE_EXPR:{
                 const VL_Expr* expr = ast->data.expr;
+                if(expr->len == 0){
+                    stack_push_copy(self, ast);                   
+                    return NULL;                                    
+                }
+
                 VL_Object* special_head = VL_Expr_get(expr, 0)->val; 
             
                 if(special_head->type == VL_TYPE_KEYWORD){
@@ -853,7 +954,7 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                                 VL_Object val; 
                                 stack_pop_to(self, &val);
 
-                                VL_SymMap_insert(env, label->data.symbol, &val);
+                                VL_Closure_insert(env, label->data.symbol, &val);
                                 stack_push_none(self);
                             )
                             return NULL;
@@ -914,17 +1015,21 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                         SFORM_FUNCTION(MACRO, true)
                         SFORM_FUNCTION(FN, false)
                         SPECIAL_FORM(DO, 1, 
-                            ast = VL_Core_eval_do(self, env, VL_Expr_get(expr, 1)->val);
+                            ast = VL_Core_eval_do(self, env, VL_Expr_get(expr, 1)->val);      
                             if(ast != NULL){
                                 tail_call = true;
                             }
                             else{
-                                return NULL;
+                                stack_push_none(self);
                             }
                         )
                         default:{
                             for(size_t i = 0; i < expr->len; i++){
                                 VL_Core_eval_obj(self, env, VL_Expr_get(expr, i)->val);
+                                if(stack_rget(self, 0)->type == VL_TYPE_ERROR){
+                                    trace(self, VL_Expr_get(expr, i));
+                                    return NULL;
+                                }
                             }
                             return ast; 
                         }
@@ -933,6 +1038,10 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                 else{
                     for(size_t i = 0; i < expr->len; i++){
                         VL_Core_eval_obj(self, env, VL_Expr_get(expr, i)->val);
+                        if(stack_rget(self, 0)->type == VL_TYPE_ERROR){
+                            trace(self, VL_Expr_get(expr, i));
+                            return NULL;
+                        }
                     } 
                 }
                 break;
@@ -955,14 +1064,14 @@ VL_Object* VL_Core_eval_ast(VL_Core* self, VL_SymMap* env, VL_Object* ast){
     return ast;
 } 
 
-void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
+void VL_Core_eval_obj(VL_Core* self, VL_Closure* env, VL_Object* ast){
     #define EVAL_CASE(KEYWORD, N, FUNCTION)                 \
         case VL_KEYWORD_GET_ENUM(KEYWORD):{                 \
             if(args == N){                                  \
-                fn_##FUNCTION(self, expr);                  \
+                fn_##FUNCTION(self);                        \
             }                                               \
             else{                                           \
-                error_argcount(self, expr,                  \
+                error_argcount(self,                        \
                     VL_KEYWORD_GET_ENUM(KEYWORD), N, args); \
             }                                               \
             break;                                          \
@@ -974,31 +1083,31 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
             CTYPE(INT, val->data.v_int = OP (val->data.v_int);)         \
             CTYPE(FLOAT, val->data.v_float = OP (val->data.v_float);)   \
             default:                                                    \
-                error_keyword_unary(self, expr, KEYWORD, val);          \
+                error_keyword_unary(self, KEYWORD, val);                \
                 break;                                                  \
         }                                                               \
         
-    #define BINARY_CASE(KEYWORD, OP)                                    \
-        VL_Object* lhs = stack_rget(self, 1);                           \
-        VL_Object* rhs = stack_rget(self, 0);                           \
-        if(lhs->type == rhs->type){                                     \
-            switch(lhs->type){                                          \
-                CTYPE(INT,                                              \
-                    lhs->data.v_int OP##= rhs->data.v_int;              \
-                    self->stack->len--;                                 \
-                )                                                       \
-                CTYPE(FLOAT,                                            \
-                    lhs->data.v_float OP##= rhs->data.v_float;          \
-                    self->stack->len--;                                 \
-                )                                                       \
-                default:                                                \
-                    error_keyword_binary(self, expr, KEYWORD, lhs, rhs);\
-                    break;                                              \
-            }                                                           \
-        }                                                               \
-        else{                                                           \
-            error_keyword_binary(self, expr, KEYWORD, lhs, rhs);        \
-        }                                                               \
+    #define BINARY_CASE(KEYWORD, OP)                                \
+        VL_Object* lhs = stack_rget(self, 1);                       \
+        VL_Object* rhs = stack_rget(self, 0);                       \
+        if(lhs->type == rhs->type){                                 \
+            switch(lhs->type){                                      \
+                CTYPE(INT,                                          \
+                    lhs->data.v_int OP##= rhs->data.v_int;          \
+                    self->stack->len--;                             \
+                )                                                   \
+                CTYPE(FLOAT,                                        \
+                    lhs->data.v_float OP##= rhs->data.v_float;      \
+                    self->stack->len--;                             \
+                )                                                   \
+                default:                                            \
+                    error_keyword_binary(self, KEYWORD, lhs, rhs);  \
+                    break;                                          \
+            }                                                       \
+        }                                                           \
+        else{                                                       \
+            error_keyword_binary(self, KEYWORD, lhs, rhs);          \
+        }                                                           
         
     #define MATH_DUAL_OPERATOR(KEYWORD, OP)                             \
         case VL_KEYWORD_GET_ENUM(KEYWORD):{                             \
@@ -1014,7 +1123,7 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                 default:                                                \
                     VL_Keyword_perror(VL_KEYWORD_GET_ENUM(KEYWORD));    \
                     printf(" expected 1-2 argument(s) not %zu\n", args);\
-                    error_keyword(self, expr, 0, VL_ERROR_ARG_MISMATCH);\
+                    error_push(self, args, VL_ERROR_ARG_MISMATCH);      \
                     break;                                              \
             }                                                           \
             break;                                                      \
@@ -1022,20 +1131,17 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
     
     bool tail_call;         
     size_t fn_ptr = self->stack->len;
-    
-    ast = VL_Core_eval_ast(self, env, ast);       
+    ast = eval_ast(self, env, ast);       
 
     while(true){
         if(ast == NULL){
             break;
         }
-
+        
         VL_Object* head = stack_get(self, fn_ptr);
 
         tail_call = false;
         size_t args = VL_Core_num_args(self, fn_ptr);
-        VL_Expr* expr = ast->data.expr;
-        
 
         switch(head->type){
             case VL_TYPE_KEYWORD: {
@@ -1060,8 +1166,10 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                     EVAL_CASE(SEQSET, 3, seqset)
                     EVAL_CASE(SEQLEN, 1, seqlen)
 
+                    EVAL_CASE(TYPE, 1, type)
                     EVAL_CASE(INPUT, 0, input)
                     EVAL_CASE(TIME, 0, time)
+                    EVAL_CASE(LOAD, 1, load)
 
                     case VL_KEYWORD_PRINT:{
                         for(size_t i = 0; i < args; i++){
@@ -1091,10 +1199,7 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                     default: {       
                         VL_Object_perror(stack_get(self, fn_ptr));            
                         printf(" is not defined in this context\n");
-
-                        error_expr(self, expr);
-                        stack_dropn(self, args + 1);
-                        stack_push_error(self, VL_ERROR_ARG_MISMATCH);       
+                        error_push(self, args + 1, VL_ERROR_ARG_MISMATCH);       
                         return;
                     }
                 }
@@ -1108,33 +1213,39 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
             case VL_TYPE_FUNCTION: {
                 VL_Function* fn = &head->data.arc->fn;
 
-                if(fn->args->len + 1 == expr->len){ 
-                    VL_SymMap* new_env = VL_SymMap_new(env, 4);
+                if(fn->args->len == args){ 
+                    VL_Closure* new_env = VL_Closure_new(fn->env, 4);
 
-                    for(size_t i = 0; i + 1 < expr->len; i++){
-                        VL_SymMap_insert(new_env, VL_Function_getArg(fn, i), 
+                    for(size_t i = 0; i < args; i++){
+                        VL_Closure_insert(new_env, VL_Function_getArg(fn, i), 
                             stack_get(self, fn_ptr + i + 1));
                     }
 
-                    self->stack->len = self->stack->len - expr->len + 1;
+                    self->stack->len = self->stack->len - args;
 
                     VL_Object new_body = *fn->body;
-                    ast = VL_Core_eval_ast(self, new_env, &new_body);
-                    VL_SymMap_delete(new_env);
                     
-                    VL_Object_clear(stack_get(self, fn_ptr));
-
-                    for(size_t i = fn_ptr + 1; i < self->stack->len; i++){
-                        self->stack->data[i - 1] = self->stack->data[i];
+                    ast = eval_ast(self, new_env, &new_body);
+                    VL_Closure_delete(new_env);
+                    
+                    if(ast != NULL && ast->type == VL_TYPE_ERROR){
+                        stack_dropn(self, self->stack->len - fn_ptr);
                     }
-                    self->stack->len--;
+                    else{
+                        VL_Object_clear(stack_get(self, fn_ptr));
 
-                    tail_call = true;
+                        for(size_t i = fn_ptr + 1; i < self->stack->len; i++){
+                            self->stack->data[i - 1] = self->stack->data[i];
+                        }
+
+                        self->stack->len--;
+                        tail_call = true;    
+                    }
                 }
                 else{
                     size_t args = VL_Core_num_args(self, fn_ptr);
 
-                    printf("Function argument mismatch, expected [");
+                    printf("Function argument mismatch, expected %zu args not, %zu\n[", fn->args->len, args);
                     if(fn->args->len > 0){
                         for(size_t i = 0; i + 1 < fn->args->len; i++){
                             VL_Object_repr(fn->args->data[i].val);
@@ -1142,7 +1253,7 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                         }
                         VL_Object_repr(VL_Expr_rget(fn->args, 0)->val);
                     }
-                    printf("] not [");
+                    printf("] =/=> [");
                     if(self->stack->len > fn_ptr + 1){
                         for(size_t i = fn_ptr; i < self->stack->len; i++){
                             VL_Object_repr(stack_get(self, i));
@@ -1150,26 +1261,34 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
                         }
                         VL_Object_repr(stack_rget(self, 0));
                     }
-                    printf("]%zu:%zu\n", args, expr->len);
+                    printf("]\n");
 
-                    VL_Expr_print(expr);
-
-                    error(self, VL_Expr_get(expr, 0));
-                    stack_dropn(self, args + 1);
-                    stack_push_error(self, VL_ERROR_TYPE_ERROR);       
+                    error_push(self, args + 1, VL_ERROR_TYPE_ERROR);       
                 }
+                break;
+            }
+            case VL_TYPE_ERROR:{
+                size_t args = VL_Core_num_args(self, fn_ptr);
+                
+                printf("--");
+                VL_Object_perror(stack_get(self, fn_ptr));
+                printf("\n| ");
+                error_push(self, args + 1, VL_ERROR_UNDEFINED);       
                 break;
             }
             default: {
                 size_t args = VL_Core_num_args(self, fn_ptr);
                 
                 VL_Object_perror(stack_get(self, fn_ptr));
-                printf(" cannot be used as a function in ");
-                VL_Expr_print(expr);
-                printf("\n");
-                error(self, VL_Expr_get(expr, 0));
-                stack_dropn(self, args + 1);
-                stack_push_error(self, VL_ERROR_UNDEFINED);       
+                
+                printf(" cannot be used as a function with [");
+                for(size_t i = fn_ptr + 1; i < self->stack->len; i++){
+                    VL_Object_perror(stack_get(self, i));
+                    printf(",");
+                }
+                printf("]\n");
+
+                error_push(self, args + 1, VL_ERROR_UNDEFINED);       
                 break;
             }
         }
@@ -1179,7 +1298,7 @@ void VL_Core_eval_obj(VL_Core* self, VL_SymMap* env, VL_Object* ast){
         }
     }
 }
-void VL_Core_eval(VL_Core* self, VL_SymMap* env){
+void VL_Core_eval(VL_Core* self, VL_Closure* env){
     VL_Core_eval_obj(self, env, stack_get(self, 0));
 }
 
@@ -1239,7 +1358,7 @@ void VL_Core_repl(VL_Core* self){
         }
         else if(VL_Str_cmp_cstr(main->source, "@global") == 0){
             printf("Globals: ");
-            VL_SymMap_print(self->scope_global);
+            VL_Closure_print(self->scope_global);
             printf("\n");
         }
         else{

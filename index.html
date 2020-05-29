@@ -1,0 +1,10 @@
+[H[2J[3Jbody = ((p "hello viperhtml"))
+constructor = (#DO ((#INFIX __indent <- 0) (fn __write (text) ((print text))) (fn __print_indent () ((#INFIX i <- 0) (while (#INFIX i < __indent) ((print "	") (#INFIX i <- i + 1))))) (fn p (text) ((__print_indent) (__write "<p>") (__write text) (__write "</p>
+"))) (__write "<!doctype html>
+") (__write "<html>
+") (#DO ((p "hello viperhtml"))) (__write "</html>
+")))
+<!doctype html>
+<html>
+<p>hello viperhtml</p>
+</html>

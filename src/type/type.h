@@ -11,7 +11,8 @@ X(EQ)       X(NEQ)                              \
 X(INT)      X(FLOAT)    X(CHAR)                 \
 X(STRING)   X(TUPLE)                            \
 X(PRINT)    X(INPUT)    X(TIME)                 \
-X(SEQGET)   X(SEQSET)   X(SEQLEN)                        
+X(SEQGET)   X(SEQSET)   X(SEQLEN)   X(TYPE)     \
+X(LOAD)
 
 #define VL_KEYWORD_SPECIAL_MAPPING(X)   \
 X(SET)                                  \
@@ -42,6 +43,7 @@ typedef enum {
 
 #define VL_TYPE_MAPPING(X)  \
 X(NONE)         X(ERROR)    \
+X(TYPE)                     \
 X(KEYWORD)      X(SYMBOL)   \
 X(BOOL)         X(CHAR)     \
 X(INT)          X(FLOAT)    \
@@ -74,7 +76,7 @@ typedef struct VL_ExprAtom VL_ExprAtom;
 typedef struct VL_Expr VL_Expr;
 
 typedef struct VL_SrcPos VL_SrcPos;
-typedef struct VL_SymMap VL_SymMap;
+typedef struct VL_Closure VL_Closure;
 typedef struct VL_Function VL_Function;
 
 struct VL_Str{
@@ -111,18 +113,19 @@ struct VL_Expr{
     size_t reserve_len;    
 };
 
-struct VL_SymMap{
+struct VL_Closure{
+    size_t ref_count;
     size_t len;
     size_t elems;
 
     VL_Str* keys;
     size_t* hash;
     VL_Object* data;
-    VL_SymMap* parent;
+    VL_Closure* parent;
 };
 
 struct VL_Function{
-    VL_SymMap* env;
+    VL_Closure* env;
     VL_Expr* args;
     VL_Object* body;
     bool is_macro;
@@ -147,6 +150,7 @@ struct VL_Object{
         VL_Int v_int;
         VL_Float v_float;
         
+        VL_Type type;
         VL_Error err;
         VL_Keyword keyword;
         
@@ -188,6 +192,6 @@ void VL_Object_perror(const VL_Object* self);
 #include "str.h"
 #include "tuple.h"
 #include "expr.h"
+#include "closure.h"
 #include "function.h"
-#include "symmap.h"
 #include "object.h"

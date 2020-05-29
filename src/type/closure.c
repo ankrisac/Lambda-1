@@ -1,6 +1,7 @@
-#include "symmap.h"
+#include "closure.h"
 
-void VL_SymMap_init(VL_SymMap* self, VL_SymMap* parent, size_t len){
+void init(VL_Closure* self, VL_Closure* parent, size_t len){
+    self->ref_count = 1;
     self->len = (len > 0) ? len : 1;
     self->elems = 0;
 
@@ -14,12 +15,20 @@ void VL_SymMap_init(VL_SymMap* self, VL_SymMap* parent, size_t len){
         self->data[i].type = VL_TYPE_NONE;
     }
 }
-VL_SymMap* VL_SymMap_new(VL_SymMap* parent, size_t len){
-    VL_SymMap* self = malloc(sizeof* self);
-    VL_SymMap_init(self, parent, len);
+VL_Closure* VL_Closure_new(VL_Closure* parent, size_t len){
+    VL_Closure* self = malloc(sizeof* self);
+    init(self, parent, len);
     return self;
 }
-void VL_SymMap_clear(VL_SymMap* self){
+VL_Closure* VL_Closure_share(VL_Closure* self){
+    if(self != NULL && self->ref_count > 0){
+        self->ref_count++;
+        return self;
+    }
+    return NULL;
+}
+
+void VL_Closure_force_delete(VL_Closure* self){
     for(size_t i = 0; i < self->len; i++){
         if(self->keys[i].data != NULL){
             VL_Str_clear(&self->keys[i]);
@@ -30,12 +39,20 @@ void VL_SymMap_clear(VL_SymMap* self){
     free(self->keys);
     free(self->hash);
     free(self->data);
-}
-void VL_SymMap_delete(VL_SymMap* self){
-    VL_SymMap_clear(self);
     free(self);
 }
-size_t perturb(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
+
+void VL_Closure_delete(VL_Closure* self){
+    if(self->ref_count > 0){
+        self->ref_count--;
+
+        if(self->ref_count == 0){
+            VL_Closure_force_delete(self);
+        }
+    }
+}
+
+size_t perturb(const VL_Closure* self, const VL_Str* str, size_t str_hash){
     size_t mask = self->len; 
     size_t j = str_hash;
     size_t perturb = str_hash;
@@ -48,11 +65,12 @@ size_t perturb(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
     }
     return index;
 }
-void resize(VL_SymMap* self, size_t len){
-    VL_SymMap new_map;
+void resize(VL_Closure* self, size_t len){
+    VL_Closure new_map;
     
-    VL_SymMap_init(&new_map, self->parent, len);
+    init(&new_map, self->parent, len);
     new_map.elems = self->elems;
+    new_map.ref_count = self->ref_count;
 
     for(size_t i = 0; i < self->len; i++){
         VL_Str* key = &self->keys[i];
@@ -71,7 +89,7 @@ void resize(VL_SymMap* self, size_t len){
     free(self->hash);
     *self = new_map;
 }
-void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, VL_Object* value){
+void VL_Closure_insert_cstr(VL_Closure* self, const VL_Str* str, size_t str_hash, VL_Object* value){
     if(10 * self->elems > 7 * self->len){
         size_t new_len = self->len * 4;
         resize(self, new_len);   
@@ -91,7 +109,7 @@ void VL_SymMap_insert_cstr(VL_SymMap* self, const VL_Str* str, size_t str_hash, 
         VL_Object_copy(&self->data[i], value);
     }
 }
-VL_Object* find(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
+VL_Object* find(const VL_Closure* self, const VL_Str* str, size_t str_hash){
     size_t i = perturb(self, str, str_hash);
 
     if(self->keys[i].data != NULL && VL_Str_cmp(&self->keys[i], str) == 0){
@@ -103,17 +121,17 @@ VL_Object* find(const VL_SymMap* self, const VL_Str* str, size_t str_hash){
     return NULL;
 }
 
-void VL_SymMap_insert(VL_SymMap* self, const VL_Symbol* sym, VL_Object* value){
-    VL_SymMap_insert_cstr(self, sym->label, sym->hash, value);
+void VL_Closure_insert(VL_Closure* self, const VL_Symbol* sym, VL_Object* value){
+    VL_Closure_insert_cstr(self, sym->label, sym->hash, value);
 }
-VL_Object* VL_SymMap_find_str(const VL_SymMap* self, const VL_Str* str){
+VL_Object* VL_Closure_find_str(const VL_Closure* self, const VL_Str* str){
     return find(self, str, VL_Str_hash(str));
 }
-VL_Object* VL_SymMap_find(const VL_SymMap* self, const VL_Symbol* sym){
+VL_Object* VL_Closure_find(const VL_Closure* self, const VL_Symbol* sym){
     return find(self, sym->label, sym->hash);
 }
 
-void VL_SymMap_print(const VL_SymMap* self){
+void VL_Closure_print(const VL_Closure* self){
     bool before = false;
     
     printf("{");

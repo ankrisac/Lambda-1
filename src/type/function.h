@@ -1,7 +1,7 @@
 #include "type.h"
 
-void VL_Function_init(VL_Function* self, VL_SymMap* parent_env, VL_Expr* args, VL_Object* body);
-VL_Function* VL_Function_new(VL_SymMap* parent_env, VL_Expr* args, VL_Object* body);
+void VL_Function_init(VL_Function* self, VL_Closure* parent_env, VL_Expr* args, VL_Object* body);
+VL_Function* VL_Function_new(VL_Closure* parent_env, VL_Expr* args, VL_Object* body);
 void VL_Function_clear(VL_Function* self);
 void VL_Function_delete(VL_Function* self);
 

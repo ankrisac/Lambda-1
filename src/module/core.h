@@ -27,15 +27,15 @@ typedef struct{
     VL_ModuleList* modules;
     VL_Object* ast;
     
-    VL_SymMap* scope_global;
-    VL_SymMap* ptable;
+    VL_Closure* scope_global;
+    VL_Closure* ptable;
     bool panic;
 }VL_Core;
 
 VL_Core* VL_Core_new();
 void VL_Core_delete(VL_Core* self);
 
-void VL_Core_eval_expr_args(VL_Core* self, VL_SymMap* scope, const VL_Expr* expr);
+void VL_Core_eval_obj(VL_Core* self, VL_Closure* env, VL_Object* ast);
 
 void VL_Core_print_location(VL_Core* self, const VL_ExprAtom* atom);
 

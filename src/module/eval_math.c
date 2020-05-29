@@ -1,6 +1,6 @@
 #include "eval_math.h"
 
-void add_prec(VL_SymMap* ptable, const char* symbol, int prec){
+void add_prec(VL_Closure* ptable, const char* symbol, int prec){
     VL_Tuple desc;
     VL_Tuple_init(&desc, 3);
     VL_Tuple_append(&desc, &(VL_Object){ .type = VL_TYPE_INT, .data.v_int = prec });
@@ -11,17 +11,18 @@ void add_prec(VL_SymMap* ptable, const char* symbol, int prec){
     obj.data.arc->tuple = desc;
 
     VL_Str* str = VL_Str_from_cstr(symbol);
-    VL_SymMap_insert_cstr(ptable, str, VL_Str_hash(str), &obj);
+    VL_Closure_insert_cstr(ptable, str, VL_Str_hash(str), &obj);
     VL_Str_delete(str);
 }
 
-VL_SymMap* init_ptable(){
-    VL_SymMap* ptable = VL_SymMap_new(NULL, 2);
+VL_Closure* init_ptable(){
+    VL_Closure* ptable = VL_Closure_new(NULL, 2);
 
     size_t n = 1;
 
     add_prec(ptable, ":=", n);
     add_prec(ptable, "=", n);
+    add_prec(ptable, "<-", n);
 
     add_prec(ptable, "&&", n);
     add_prec(ptable, "||", n++);
@@ -41,6 +42,8 @@ VL_SymMap* init_ptable(){
 
     add_prec(ptable, "$", n);
     add_prec(ptable, ".", n++);
+    add_prec(ptable, ":", n++);
+    add_prec(ptable, "=>", n++);
 
     return ptable;
 }
@@ -48,7 +51,7 @@ VL_SymMap* init_ptable(){
 const size_t SYMBOL_PRECEDENCE = 0;
 VL_Int prec(const VL_Core* self, const VL_ExprAtom* atom){
     if(atom->val->type == VL_TYPE_SYMBOL){
-        VL_Object* obj = VL_SymMap_find(self->ptable, atom->val->data.symbol);
+        VL_Object* obj = VL_Closure_find(self->ptable, atom->val->data.symbol);
 
         if(obj == NULL){
             return SYMBOL_PRECEDENCE;

@@ -78,6 +78,6 @@ void VL_Object_perror(const VL_Object* self){
     printf("[");
     VL_Type_print(self->type);
     printf(VLT_RESET ":" VLT_RED VLT_BOLD);
-    VL_Object_print(self);
+    VL_Object_repr(self);
     printf(VLT_RESET "]");
 }
